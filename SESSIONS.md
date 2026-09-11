@@ -1,19 +1,25 @@
 # SESSIONS.md — step-by-step build order with Claude Code prompts
 
 Order (revised 2026-09-11): skeleton → **seller side (manual entry)** →
-**marketplace** → item agents → catalog & import → collector side → routing →
-offers → demand dashboard & pilot.
+**buyer side (marketplace + buying + collection shell)** → item agents →
+catalog & import → collector side → routing → offers (advanced) → demand
+dashboard & pilot.
 
 > **Plan change (2026-09-11).** At the founder's request we build the **seller
 > side first** and **enter inventory by hand** — no coin catalog or CSV import
-> yet (catalogs get attached later) — and we add a **public marketplace** where
-> any logged-in user can browse available items. So the original "Catalog &
-> seed" session moves later (it now also links the hand-entered items to the
-> catalog), and seller + marketplace come right after the skeleton. Until the
-> catalog exists, an inventory item stores its own coin details and its
-> `coin_type_id` is left empty; the catalog session backfills those links, which
-> is what powers gap detection, routing, and demand. See SPEC.md §5
-> (inventory_items) and §10.
+> yet (catalogs get attached later) — then a **buyer side**: a public
+> marketplace where any logged-in account can browse, buy (simulated), make
+> offers, and save coins to a watchlist, with a buyer dashboard tying it
+> together. The original "Catalog & seed" session moves later (it now also links
+> the hand-entered items to the catalog). Until the catalog exists, an inventory
+> item stores its own coin details and its `coin_type_id` is left empty; the
+> catalog session backfills those links, which powers gap detection, routing,
+> and demand. See SPEC.md §5 (inventory_items, saved_items) and §10.
+>
+> **Roles:** the seller side is the **Dealer** view; the buyer side is the
+> **Collector** view. Every buyer account is a collector too — it has a
+> **collection built in** (auto-created), scaffolded in Session 2 and filled in
+> (adding coins, sets, gaps, wants) in Session 5.
 
 Each session: read CLAUDE.md and the relevant SPEC.md sections first; build one
 screen/feature at a time and show it; and end with "Commit everything with a
@@ -57,22 +63,34 @@ dealer profile, open any item, and list one with photos.
 
 ---
 
-## Session 2 — Marketplace
+## Session 2 — Buyer side (marketplace, buying, offers, saved, collection shell)
 
-> Read CLAUDE.md and SPEC.md (§4 Marketplace, §6.4 checkout). We're on Session 2.
-> Build `/market` with the filters, sort, and search in SPEC §4, showing only
-> items that are listed and public — **any logged-in user can browse**. Build
-> `/market/[itemId]` with photos, coin details, seller name and stats, price, and
-> **Buy now** (Make offer and Add to wants come in later sessions — leave clear
-> placeholders). Count views. Build the seller storefront
-> `/market/sellers/[dealerId]`. Build `/checkout/buy/[itemId]` as a clearly
-> labelled simulation that creates an `orders` row, marks the item sold, and
-> cancels any pending offers on it, plus `/orders` for buyers and sellers. Then
-> create a second test account so I can buy one of my own listed coins and see it
-> as sold.
+> Read CLAUDE.md and SPEC.md (§4 Marketplace + Collector, §5
+> offers/orders/saved_items/collections, §6.4). We're on Session 2 — the buyer
+> side, which lives under the **Collector** role in the header switcher and is
+> open to any logged-in account. Create migrations for `orders`, `offers`,
+> `saved_items` (a buyer's watchlist), and auto-create a `collections` row per
+> account (every buyer has a collection built in). Build `/market` with filters,
+> sort, and search (SPEC §4), showing only listed & public items. Build
+> `/market/[itemId]` with photos, coin details, seller name/stats, price, and
+> three actions: **Buy now**, **Make offer** (a single offer to the seller), and
+> **Save** (adds to the watchlist). Count views. Build `/market/sellers/[dealerId]`
+> (storefront) and `/checkout/buy/[itemId]` as a labelled simulation that creates
+> an `orders` row, marks the item sold, and cancels any pending offers on it.
+> Build the **buyer hub** — the Collector view's home — tying together: recent
+> purchases (`/orders`), sent offers, saved coins (`/saved`), and a **My
+> Collection** section that is a placeholder for now (adding coins, sets, and
+> gaps is Session 5). On the seller side, let sellers **accept or decline** a
+> marketplace offer from `/dealer/offers`; accepting runs the simulated checkout
+> into an order. (Counters, parallel offers, 48h expiry, offers from routed
+> requests, and demand events come in Session 7.) Create a second test account so
+> I can browse, save, offer on, and buy one of my listed coins. One screen at a
+> time; show me each.
 
-What you should be able to do after: a buyer can find a coin, read the listing,
-and buy it (simulated); you see the sale. A working marketplace, minus real money.
+What you should be able to do after: from another account (its Collector view),
+browse the marketplace, save a coin, make an offer (and accept it as the seller),
+buy a coin via simulated checkout, and see purchases, offers, saved items, and an
+empty My Collection in the buyer hub.
 
 ---
 
@@ -121,10 +139,12 @@ hand-entered items are linked to the catalog (unlocking gaps, routing, demand).
 
 ## Session 5 — Collector side
 
-> Read CLAUDE.md and SPEC.md (§4 Collector, §6.1). We're on Session 5. Build the
-> collector screens: `/collection` set-grid with completion %, `/collection/add`
-> (cert lookup via PCGS or stub, and catalog pick), set- and slot-level
-> grade/budget targets, "Make this a want" from any gap, `/wants` and
+> Read CLAUDE.md and SPEC.md (§4 Collector, §6.1). We're on Session 5. The
+> collection shell (an auto-created `collections` row and the My Collection
+> placeholder in the buyer hub) already exists from Session 2; this session fills
+> it in. Build the collector screens: `/collection` set-grid with completion %,
+> `/collection/add` (cert lookup via PCGS or stub, and catalog pick), set- and
+> slot-level grade/budget targets, "Make this a want" from any gap, `/wants` and
 > `/wants/[id]` (the Add-to-wants button from the marketplace lands here now), and
 > a "Sell this coin" action that copies a collection item into inventory and opens
 > `/sell`. No photo identification anywhere. One screen at a time.
@@ -151,18 +171,17 @@ dealers' inboxes, with the reasoning visible in admin.
 
 ---
 
-## Session 7 — Offers
+## Session 7 — Offers (advanced)
 
-> Read CLAUDE.md and SPEC.md (§6.4). We're on Session 7. Build offers: from a
-> request a dealer picks a matching item (price prefilled, editable) and sends;
-> collectors accept/decline/counter on `/wants/[id]`; sellers accept/decline/counter
-> marketplace offers from `/dealer/offers`; counters link to the original. Build
-> parallel offers (one price to up to 5 dealers sharing a `parallel_group_id`;
-> first acceptance wins, the rest cancelled "filled_elsewhere"; dealers see a
-> "parallel" badge). Offers expire at 48h via cron. Build `/checkout/[offerId]`
-> reusing the simulated checkout. Now turn on the daily `demand_update` and
-> `recommendation` agent events and fill in the demand panel on item detail. Test
-> the parallel case with the three demo dealers.
+> Read CLAUDE.md and SPEC.md (§6.4). We're on Session 7. Basic single offers
+> (buyer → seller on a listing, with accept/decline) already exist from Session 2;
+> this session adds the rest of §6.4: counters that link to the original;
+> **parallel offers** (one price to up to 5 dealers sharing a `parallel_group_id`;
+> first acceptance wins, the rest cancelled "filled_elsewhere"; a "parallel"
+> badge); 48-hour expiry via cron; offers a dealer sends **from a routed request**;
+> and unifying acceptance through `/checkout/[offerId]`. Then turn on the daily
+> `demand_update` and `recommendation` agent events and fill in the demand panel on
+> item detail. Test the parallel case with the three demo dealers.
 
 What you should be able to do after: run the core demo end to end (browse → want →
 routed → offer → accept → simulated sale), including parallel-offer clearing.

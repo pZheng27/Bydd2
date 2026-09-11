@@ -189,6 +189,9 @@ numeric, `score_breakdown` jsonb, `status` enum
 `buyer_profile_id`, `seller_profile_id`, `amount_cents`, `kind` enum
 (buy_now/offer), `status` (completed), `note` "SIMULATED — no funds moved".
 
+**saved_items** — a buyer's watchlist of specific listings. `profile_id`,
+`inventory_item_id`. Unique on (`profile_id`, `inventory_item_id`).
+
 **spot_prices** — `metal`, `price_cents_per_oz`, `fetched_at`, `source`.
 
 **guide_prices** — `coin_type_id`, `grade`, `designation` null,
@@ -302,7 +305,10 @@ couldn't match to the catalog instead of failing.
 
 > **Build-order revision (2026-09-11).** The build now follows `SESSIONS.md`,
 > which reorders this plan: at the founder's request the **seller side (manual
-> inventory entry)** and the **public marketplace** come right after the
+> inventory entry)** and the **buyer side** (public marketplace to browse, buy,
+make single offers, and save coins, with a buyer dashboard — and every buyer
+account, which is the **Collector** view, has a **collection built in**,
+auto-created and filled in later) come right after the
 > skeleton, and the original **S1 "Catalog & seed"** moves later (it now also
 > links hand-entered items to the catalog). Until then, inventory items are
 > entered by hand with `coin_type_id` left empty (see §5). The per-feature
