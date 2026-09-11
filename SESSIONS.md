@@ -202,6 +202,21 @@ database, then invite ten dealers and thirty collectors.
 
 ---
 
+## Session 9 — Payments & fulfillment (post-pilot, once validated)
+
+Deferred by design (SPEC §8, §11). Through the pilot, checkout stays
+**simulated** and dealers/buyers settle payment and shipping **off-platform**.
+Build this only after the core mechanic is validated with real dealers:
+
+> Payments via **Stripe Connect** (seller onboarding + KYC, escrow/holds on
+> high-value items, payouts, refunds, platform fee); buyer/seller protection and
+> a disputes/returns flow; **shipping** labels + tracking (Shippo/EasyPost) with
+> insurance; and coin authentication/verification. Card data is handled entirely
+> by Stripe — never in our code. Replace the simulated checkout surfaces with the
+> real flow while keeping the `orders` model.
+
+---
+
 ## Between sessions
 
 Keep `NOTES.md` of everything that felt wrong (a rule edge case, a screen that
