@@ -71,15 +71,30 @@ function DealerHome() {
 }
 
 function CollectorHome() {
+  const links = [
+    { href: "/market", title: "Marketplace", desc: "Browse and buy listed coins." },
+    { href: "/saved", title: "Saved", desc: "Coins you've saved to watch." },
+    { href: "/orders", title: "Orders", desc: "Your purchases and sales." },
+    { href: "/offers", title: "Offers", desc: "Offers you've made." },
+    { href: "/collection", title: "My Collection", desc: "Your collection (fills in later)." },
+  ];
   return (
-    <div className="mx-auto mt-10 max-w-2xl rounded-xl border border-dashed p-10 text-center">
-      <h1 className="text-2xl font-semibold">Collector view</h1>
-      <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-        <p>Your collection and marketplace buying will live here.</p>
-        <p>
-          Coming in Session 2: browse the marketplace, buy, make offers, and save
-          coins.
-        </p>
+    <div className="mx-auto max-w-3xl">
+      <h1 className="text-2xl font-semibold">Collector</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Browse the marketplace and manage your collection.
+      </p>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        {links.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="rounded-xl border p-4 transition-colors hover:bg-muted"
+          >
+            <div className="font-medium">{l.title}</div>
+            <div className="mt-1 text-sm text-muted-foreground">{l.desc}</div>
+          </Link>
+        ))}
       </div>
     </div>
   );
