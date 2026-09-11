@@ -61,6 +61,8 @@ The founder is a professional coin dealer and is not an engineer. Therefore:
 
 ## Session discipline
 
-Work follows the session plan in `SPEC.md` §10. At the start of a session,
+Work follows the build order in `SESSIONS.md` and the acceptance criteria in
+`SPEC.md` §10 (both revised 2026-09-11 so the seller side and marketplace come
+before the catalog). At the start of a session,
 state which session you're on and its acceptance criteria. At the end, confirm
 each criterion is met or say plainly which isn't and why.

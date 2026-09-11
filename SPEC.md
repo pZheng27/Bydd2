@@ -152,7 +152,10 @@ Gold", "Modern Bullion", "Seated Coinage", "Commemoratives", "World",
 "Currency"), `response_rate` numeric, `median_response_minutes` int,
 `accepts_requests` bool.
 
-**inventory_items** — `dealer_id`, `coin_type_id`, `grade`, `designation`,
+**inventory_items** — `dealer_id`, `coin_type_id` null (left empty for
+hand-entered items until the catalog exists — see the build-order note in §10;
+the manual-entry fields below describe the coin meanwhile), `series`, `year`,
+`mintmark`, `variety`, `metal`, `fine_weight_oz`, `grade`, `designation`,
 `grading_service`, `cert_number`, `cost_cents` null, `price_cents`,
 `status` enum (listed/unlisted/reserved/sold), `is_public` bool (listed items
 appear in search; unlisted never do), `location_note` (e.g. "Case 3, show
@@ -296,6 +299,15 @@ sales-history CSV. Importers must tolerate blanks and report rows they
 couldn't match to the catalog instead of failing.
 
 ## 10. Session plan and acceptance criteria
+
+> **Build-order revision (2026-09-11).** The build now follows `SESSIONS.md`,
+> which reorders this plan: at the founder's request the **seller side (manual
+> inventory entry)** and the **public marketplace** come right after the
+> skeleton, and the original **S1 "Catalog & seed"** moves later (it now also
+> links hand-entered items to the catalog). Until then, inventory items are
+> entered by hand with `coin_type_id` left empty (see §5). The per-feature
+> acceptance criteria below still apply — only their order and the catalog
+> dependency changed.
 
 **S0 — Setup.** Repo, Next.js + Supabase + Tailwind + shadcn scaffold,
 auth with magic link, role switcher, deployed to Vercel, `README.md` explains

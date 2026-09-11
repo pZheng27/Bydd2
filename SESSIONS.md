@@ -1,222 +1,191 @@
 # SESSIONS.md — step-by-step build order with Claude Code prompts
 
-Order: skeleton → catalog & inventory → seller side → marketplace → item
-agents → collector side → routing → offers → demand dashboard & pilot.
+Order (revised 2026-09-11): skeleton → **seller side (manual entry)** →
+**marketplace** → item agents → catalog & import → collector side → routing →
+offers → demand dashboard & pilot.
 
-Before Session 0, finish SETUP.md (accounts and CSVs). Put `CLAUDE.md`,
-`SPEC.md`, and this file in an empty folder. Open a terminal in that folder
-and run `claude`. Paste the prompt for the session you're on. Every session
-ends with: "Commit everything with a clear message and confirm the deployed
-URL works."
+> **Plan change (2026-09-11).** At the founder's request we build the **seller
+> side first** and **enter inventory by hand** — no coin catalog or CSV import
+> yet (catalogs get attached later) — and we add a **public marketplace** where
+> any logged-in user can browse available items. So the original "Catalog &
+> seed" session moves later (it now also links the hand-entered items to the
+> catalog), and seller + marketplace come right after the skeleton. Until the
+> catalog exists, an inventory item stores its own coin details and its
+> `coin_type_id` is left empty; the catalog session backfills those links, which
+> is what powers gap detection, routing, and demand. See SPEC.md §5
+> (inventory_items) and §10.
 
----
-
-## Session 0 — Skeleton
-
-> Read CLAUDE.md and SPEC.md fully. We're starting Session 0 (SPEC §10).
-> Scaffold the project with the exact stack in CLAUDE.md. Set up Supabase
-> auth with magic-link email, a `profiles` table with collector/dealer/admin
-> flags, and a header role switcher between Collector and Dealer views (both
-> empty for now). Connect this folder to my GitHub repo and deploy to Vercel.
-> Write README.md covering how to run, seed, and deploy. Ask me for
-> environment keys one at a time when you need them. Explain each step in
-> plain English. When done, walk me through Session 0's acceptance criteria.
-
-What you should be able to do after: open the live URL, log in by email,
-switch between two empty views.
+Each session: read CLAUDE.md and the relevant SPEC.md sections first; build one
+screen/feature at a time and show it; and end with "Commit everything with a
+clear message and confirm the deployed URL works."
 
 ---
 
-## Session 1 — Catalog and inventory
+## Session 0 — Skeleton ✅ done (2026-09-11)
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 1. Create migrations for
-> every table in SPEC §5. Build seed data for the five set templates in SPEC
-> §9 with every date and mintmark; ask me for the Morgan varieties to include
-> before you write them. Build the inventory CSV importer and sales-history
-> CSV importer per §9: tolerate blanks, and show me a list of rows you
-> couldn't match to the catalog instead of failing. Import my `inventory.csv`
-> and `sales.csv`. Show me the counts when done.
-
-What you should be able to do after: see your real inventory in the
-database (the table UI comes next session) and see the five sets exist.
+Next.js 16 + Tailwind v4 + shadcn/ui scaffold, Supabase magic-link auth, a
+`profiles` table (collector/dealer/admin flags) with RLS, a Collector/Dealer
+role switcher over empty views, GitHub repo, and Vercel auto-deploy. Live at
+https://bydd2.vercel.app.
 
 ---
 
-## Session 2 — Seller side
+## Session 1 — Seller side (manual entry)
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 2. Build the seller
-> screens in SPEC §4: `/dealer/profile` with the fixed category list,
-> `/dealer/inventory` as a filterable table showing status (listed / unlisted
-> / reserved / sold), grade, cost, price, active rule, and last agent event,
-> `/dealer/inventory/[id]` as an item detail page with placeholder panels for
-> pricing rule, activity feed, comps, and demand, and `/dealer/requests` as an
-> inbox that is empty for now. Then build the `/sell` listing flow: pick an
-> inventory item, upload photos to Supabase Storage, auto-generate the title
-> from coin type and grade (editable), description, shipping note, price, and
-> Publish, which sets the item to listed and public. Imported inventory is
-> unlisted by default; listing happens only through `/sell`, and there is no
-> separate listed/unlisted toggle. Build one screen at a time and show me
-> each before moving on.
+> Read CLAUDE.md and SPEC.md (§4 Dealer, §5). We're on Session 1. First create
+> migrations for the seller-side tables we need now: `dealers`, `inventory_items`
+> (with `coin_type_id` **nullable** plus the manual descriptive fields —
+> series, year, mintmark, variety, metal, fine_weight_oz — alongside grade,
+> designation, grading_service, cert), and `pricing_rules` (schema only; the
+> pricing logic is Session 3). Add a Supabase Storage bucket for item photos.
+> Wire up the Supabase CLI so `npm run db:reset` runs migrations locally. Then
+> build the seller screens in SPEC §4: `/dealer/profile` with the fixed category
+> list; `/dealer/inventory` as a filterable table showing status
+> (listed/unlisted/reserved/sold), grade, cost, price, with placeholder columns
+> for active rule and last agent event; `/dealer/inventory/[id]` with placeholder
+> panels for pricing rule, activity feed, comps, and demand; and
+> `/dealer/requests` as an empty inbox. Build an **Add item** form where I type
+> the coin's details by hand (no catalog pick, no CSV) — new items are unlisted
+> by default. Then build `/sell` to list an item: upload photos to Storage,
+> auto-generate the title from what I typed (editable), description, shipping
+> note, price, Publish → status listed and public. There is no separate
+> listed/unlisted toggle; listing happens only through `/sell`. Build one screen
+> at a time and show me each.
 
-What you should be able to do after: browse your inventory, list a coin
-with photos, open an item, fill in your seller profile.
+What you should be able to do after: add several coins by hand, fill in your
+dealer profile, open any item, and list one with photos.
 
 ---
 
-## Session 2b — Marketplace
+## Session 2 — Marketplace
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 2b, the marketplace.
-> Build `/market` with the filters, sort, and search in SPEC §4, showing
-> only items that are listed and public. Build `/market/[itemId]` with
-> photos, coin details, PCGS verify link, seller name and stats, price, and
-> three buttons: Buy now, Make offer (a single simple offer for now; counters
-> and parallel offers come later), and Add to wants (creates a `wants` row
-> for this coin type; the wants screen comes in Session 4, so just confirm it
-> was saved). Count views. Build the seller storefront page
+> Read CLAUDE.md and SPEC.md (§4 Marketplace, §6.4 checkout). We're on Session 2.
+> Build `/market` with the filters, sort, and search in SPEC §4, showing only
+> items that are listed and public — **any logged-in user can browse**. Build
+> `/market/[itemId]` with photos, coin details, seller name and stats, price, and
+> **Buy now** (Make offer and Add to wants come in later sessions — leave clear
+> placeholders). Count views. Build the seller storefront
 > `/market/sellers/[dealerId]`. Build `/checkout/buy/[itemId]` as a clearly
-> labelled simulation that creates an order, marks the item sold, and cancels
-> any pending offers on it, plus `/orders` for buyers and sellers. Then create
-> a second test account for me so I can buy one of my own listed coins and
-> see it appear as sold.
+> labelled simulation that creates an `orders` row, marks the item sold, and
+> cancels any pending offers on it, plus `/orders` for buyers and sellers. Then
+> create a second test account so I can buy one of my own listed coins and see it
+> as sold.
 
-What you should be able to do after: a buyer can find a coin, read the
-listing, and buy it; you see the sale. This is a working marketplace,
-minus real money.
+What you should be able to do after: a buyer can find a coin, read the listing,
+and buy it (simulated); you see the sale. A working marketplace, minus real money.
 
 ---
 
 ## Session 3 — Item agents
 
-Split this into three prompts, in order.
+Split into three prompts, in order (see SPEC §6.3).
 
-**3a — Spot and the first rule**
+**3a — Spot and the first rule.** Spot poller (Vercel Cron every 15 min into
+`spot_prices`; seed a drifting fake series if no API key). Implement
+`evaluateRule` in `lib/domain/pricing` for `spot_plus_pct` and `floor` as pure,
+unit-tested functions with the guardrails (never below floor/cost, never move
+more than the item's max daily move). Rule editor on item detail for those two.
+These use the item's own metal + fine_weight fields, so they work on hand-entered
+inventory. Explain the math before writing tests.
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 3, part A. Build the
-> spot price poller (SPEC §7) running every 15 minutes on Vercel Cron and
-> storing into `spot_prices`; if I don't have an API key yet, seed a fake
-> series that drifts ±1% so repricing visibly happens. Then implement
-> `evaluateRule` in `lib/domain/pricing` for the `spot_plus_pct` and `floor`
-> rules only, as pure functions with unit tests, including the guardrails:
-> never below floor, never below cost, never move more than the item's max
-> daily move. Build the pricing rule editor on the item detail page for those
-> two rules. Explain the math to me in plain English before you write the
-> tests so I can check it.
+**3b — Repricing job + activity feed.** Reprice every 15 min and immediately on
+a >0.5% spot move or a rule edit; write a `repriced` `agent_events` row with a
+one-sentence explanation; build the activity feed on item detail.
 
-**3b — The repricing job and the activity feed**
+**3c — More rules + comps.** Add `step_down`, and add `match_guide` **stubbed**
+until the catalog exists. Add the `rule_visible` panel + price-history chart on
+the public listing, and this week's view count to the activity feed. Leave the
+comps panel as a placeholder ("comps arrive with the catalog"). Write a plain
+summary of how the agent works in NOTES.md.
 
-> Session 3, part B. Build the repricing job: runs every 15 minutes, and
-> immediately when spot moves more than 0.5% or a rule is edited. For every
-> item with an active rule it calls `evaluateRule`; if the price changes it
-> updates the item and writes an `agent_events` row of kind `repriced` whose
-> `summary` is a single plain-English sentence stating old price, new price,
-> what moved, and which rule produced it (see the example in SPEC §6.3).
-> Build the activity feed on the item detail page from `agent_events`, newest
-> first. Then attach a spot rule to ten of my gold items and show me the feed
-> after the job runs.
-
-**3c — More rules and comps**
-
-> Session 3, part C. Add the `step_down` and `match_guide` rules to
-> `evaluateRule` with tests. Wire the PCGS price guide lookup (or the stub if
-> my key isn't approved) into `guide_prices` with caching. Build the comps
-> panel on the item detail page showing the guide value for this coin and
-> grade plus my own past sales of the same type and grade from
-> `sales_history`. Add the `rule_visible` toggle to the rule editor; when on,
-> the public listing page shows a "How this price moves" panel describing the
-> rule in plain words and a price history chart built from `repriced` events.
-> Add this week's view count to the activity feed. Leave the demand panel as
-> a placeholder that says "Demand data arrives once collectors join." Then
-> write a plain-English summary of how the whole agent works for me to keep
-> in NOTES.md.
-
-What you should be able to do after: your bullion-linked coins reprice
-themselves when gold moves, and every item tells you in a sentence what it
-did and why. This is your first demo for other dealers.
+What you should be able to do after: bullion-linked coins reprice on gold moves
+and explain each change. Your first demo for other dealers.
 
 ---
 
-## Session 4 — Collector side
+## Session 4 — Catalog & inventory import (attach catalogs)
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 4. Build the collector
-> screens in SPEC §4: `/collection` showing each tracked set as a grid of
-> slots (filled with grade, gap with target grade, or n/a) with a completion
-> percentage; `/collection/add` with two paths, cert-number lookup via PCGS
-> (or stub) with a confirm step, and catalog pick (series → date → mintmark →
-> variety) then grade, service, optional cert; set-level and slot-level grade
-> and budget targets; `/wants` list and `/wants/[id]` (the Add-to-wants
-> button from the marketplace should now land here); "Make this a want" from
-> any gap, prefilled from the slot's targets; and a "Sell this coin" action
-> on any collection item that copies it into inventory and opens `/sell`.
-> There is no photo identification anywhere. Build one screen at a time and
-> show me each.
+> Read CLAUDE.md and SPEC.md (§5, §9). We're on Session 4. Create migrations for
+> `coin_types`, `set_templates`, `set_slots`, `guide_prices`, `sales_history`.
+> Seed the five set templates in SPEC §9 with every date and mintmark; ask me
+> which Morgan varieties to include first. Build the inventory.csv and sales.csv
+> importers per §9 (tolerate blanks; show me rows you couldn't match instead of
+> failing). Import my CSVs. Then add a way to link my existing hand-entered
+> inventory items to catalog `coin_types` (backfill), and turn on `match_guide`
+> and the guide/sales comps panel now that guide prices exist.
 
-What you should be able to do after: enter your own collection, see your
-gaps, turn a gap into a want, and sell a coin out of your collection.
+What you should be able to do after: the five sets exist, my CSVs import, and my
+hand-entered items are linked to the catalog (unlocking gaps, routing, demand).
 
 ---
 
-## Session 5 — Routing
+## Session 5 — Collector side
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 5. Implement `routeWant`
-> in `lib/domain/routing` exactly per SPEC §6.2 with unit tests covering each
-> scoring line, the top-3 cutoff, the fatigue guard, and the "no dealer
-> qualifies" case. Run it when a want is created, when a new inventory item
-> matches an open want, and weekly for open wants with no offers. Write a
-> `requests` row per dealer and a `routed` agent event with the score
-> breakdown. Send the request email via Resend. Fill in `/dealer/requests`
-> with real requests and the "you have N matching items" badge, and build
-> `/admin/routing`. Then create three "Demo Dealer" accounts with different
-> inventory so I can test who gets what, and let me create wants as a
-> collector and watch where they go.
+> Read CLAUDE.md and SPEC.md (§4 Collector, §6.1). We're on Session 5. Build the
+> collector screens: `/collection` set-grid with completion %, `/collection/add`
+> (cert lookup via PCGS or stub, and catalog pick), set- and slot-level
+> grade/budget targets, "Make this a want" from any gap, `/wants` and
+> `/wants/[id]` (the Add-to-wants button from the marketplace lands here now), and
+> a "Sell this coin" action that copies a collection item into inventory and opens
+> `/sell`. No photo identification anywhere. One screen at a time.
 
-What you should be able to do after: create a want as a collector and see it
-arrive in the right dealers' inboxes, with the reasoning visible in admin.
-Expect to spend time here telling Claude Code the scores feel wrong; that's
-the point of the session.
+What you should be able to do after: enter your collection, see gaps, turn a gap
+into a want, and sell a coin out of your collection.
 
 ---
 
-## Session 6 — Offers
+## Session 6 — Routing
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 6. Build offers per SPEC
-> §6.4: from a request, a dealer picks a matching item, price prefilled from
-> its current price, edits, sends. Collectors accept, decline, or counter on
-> `/wants/[id]`; sellers accept, decline, or counter marketplace offers from
-> `/dealer/offers`; counters create a new offer linked to the original. Build
-> parallel offers: a collector sends one price to up to 5 dealers' matching
-> items sharing a `parallel_group_id`; first acceptance wins and the rest are
-> cancelled instantly with reason "filled_elsewhere"; dealers see a "parallel"
-> badge. Offers expire at 48 hours via cron. Build `/checkout/[offerId]`,
-> reusing the simulated checkout from Session 2b, so accepting an offer
-> creates an order, marks the item sold, cancels other pending offers on it,
-> and marks the want filled. Now
-> turn on the daily `demand_update` and `recommendation` agent events from
-> SPEC §6.3 and fill in the demand panel on item detail. Test the parallel
-> case with the three demo dealers and show me the cancellations.
+> Read CLAUDE.md and SPEC.md (§6.2). We're on Session 6. Implement `routeWant` in
+> `lib/domain/routing` exactly per §6.2 with unit tests for each scoring line, the
+> top-3 cutoff, the fatigue guard, and the "no dealer qualifies" case. Run it when
+> a want is created, when a new inventory item matches an open want, and weekly for
+> open wants with no offers. Write a `requests` row per dealer and a `routed`
+> agent event with the score breakdown. Send the request email via Resend. Fill in
+> `/dealer/requests` with real requests and the "you have N matching items" badge,
+> and build `/admin/routing`. Create three Demo Dealer accounts with different
+> inventory so I can test who gets what.
 
-What you should be able to do after: run demo steps 1 through 5 end to end.
+What you should be able to do after: create a want and watch it arrive in the right
+dealers' inboxes, with the reasoning visible in admin.
 
 ---
 
-## Session 7 — Demand dashboard and pilot
+## Session 7 — Offers
 
-> Read CLAUDE.md and SPEC.md. We're starting Session 7. Build `/demand` per
-> SPEC §6.5 with the grade buckets, sortable by the gap between open wants
-> and listed supply; dealers see "unlisted supply exists: yes/no", admin sees
-> the count. Then do a polish pass on the seven screens in the 90-second demo
-> (SPEC §2): consistent spacing, empty states with helpful text, loading
-> states, and no dead buttons. Make sure every simulated surface is labelled.
-> Finally, walk me through inviting real users: how a dealer I invite gets
-> an account and sets up their profile, and how a collector does the same.
+> Read CLAUDE.md and SPEC.md (§6.4). We're on Session 7. Build offers: from a
+> request a dealer picks a matching item (price prefilled, editable) and sends;
+> collectors accept/decline/counter on `/wants/[id]`; sellers accept/decline/counter
+> marketplace offers from `/dealer/offers`; counters link to the original. Build
+> parallel offers (one price to up to 5 dealers sharing a `parallel_group_id`;
+> first acceptance wins, the rest cancelled "filled_elsewhere"; dealers see a
+> "parallel" badge). Offers expire at 48h via cron. Build `/checkout/[offerId]`
+> reusing the simulated checkout. Now turn on the daily `demand_update` and
+> `recommendation` agent events and fill in the demand panel on item detail. Test
+> the parallel case with the three demo dealers.
 
-What you should be able to do after: run the full 90-second demo without
-touching the database, then invite ten dealers and thirty collectors.
+What you should be able to do after: run the core demo end to end (browse → want →
+routed → offer → accept → simulated sale), including parallel-offer clearing.
+
+---
+
+## Session 8 — Demand dashboard & pilot
+
+> Read CLAUDE.md and SPEC.md (§6.5, §2). We're on Session 8. Build `/demand` with
+> the grade buckets, sortable by the gap between open wants and listed supply
+> (dealers see "unlisted supply exists: yes/no", admin sees the count). Do a polish
+> pass on the demo screens: consistent spacing, empty states, loading states, no
+> dead buttons; make sure every simulated surface is labelled. Then walk me through
+> inviting real dealers and collectors.
+
+What you should be able to do after: run the full demo without touching the
+database, then invite ten dealers and thirty collectors.
 
 ---
 
 ## Between sessions
 
-Keep `NOTES.md` of everything that felt wrong (routing that sent a request
-to the wrong dealer, a rule edge case, a screen that confused a dealer).
-Bring it back to me and we'll revise SPEC.md before the next session, so
-Claude Code always builds from a corrected spec rather than from memory.
+Keep `NOTES.md` of everything that felt wrong (a rule edge case, a screen that
+confused a dealer, routing that went to the wrong dealer). Bring it back and we'll
+revise SPEC.md before the next session, so Claude Code always builds from a
+corrected spec rather than from memory.
