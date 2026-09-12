@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
-import { toggleSave, makeOffer } from "@/app/(shop)/actions";
+import { toggleSave, makeOffer } from "@/app/(market)/actions";
 import { Button } from "@/components/ui/button";
 
 const inputCls =
@@ -47,7 +47,7 @@ export default async function MarketItemPage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link href="/market" className="text-sm text-muted-foreground hover:underline">
+      <Link href="/" className="text-sm text-muted-foreground hover:underline">
         ← Marketplace
       </Link>
 

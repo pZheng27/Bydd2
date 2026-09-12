@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
-import { completePurchase } from "@/app/(shop)/actions";
+import { completePurchase } from "@/app/(market)/actions";
 import { Button } from "@/components/ui/button";
 
 export default async function CheckoutBuyPage({

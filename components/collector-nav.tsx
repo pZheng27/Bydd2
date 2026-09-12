@@ -5,14 +5,14 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/market", label: "Marketplace" },
+  { href: "/collector", label: "Overview" },
   { href: "/saved", label: "Saved" },
   { href: "/orders", label: "Orders" },
   { href: "/offers", label: "Offers" },
   { href: "/collection", label: "Collection" },
 ];
 
-/** Sub-navigation for the buyer (collector) area. */
+/** Sub-navigation for the collector (buyer) area. */
 export function CollectorNav() {
   const pathname = usePathname();
   return (

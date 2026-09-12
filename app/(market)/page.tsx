@@ -10,7 +10,7 @@ const SORTS = [
   { key: "price_desc", label: "Price ↓" },
 ];
 
-export default async function MarketPage({
+export default async function MarketplaceHome({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; sort?: string }>;
@@ -34,10 +34,10 @@ export default async function MarketPage({
     <div>
       <h1 className="text-2xl font-semibold">Marketplace</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Browse coins listed by dealers.
+        Coins listed by dealers. Open to everyone.
       </p>
 
-      <form className="mt-4 flex gap-2" action="/market">
+      <form className="mt-4 flex gap-2" action="/">
         <input
           name="q"
           defaultValue={q}
@@ -59,7 +59,7 @@ export default async function MarketPage({
           return (
             <Link
               key={s.key}
-              href={`/market${query ? `?${query}` : ""}`}
+              href={`/${query ? `?${query}` : ""}`}
               className={cn(
                 "rounded-md px-3 py-1.5 text-sm",
                 sort === s.key

@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
-import { DealerNav } from "@/components/dealer-nav";
 
-export default async function DealerLayout({
+/** Neutral layout for the marketplace (home), item pages, and checkout. */
+export default async function MarketLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -16,24 +16,13 @@ export default async function DealerLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email")
+    .select("email")
     .eq("user_id", user.id)
     .single();
-
-  // Every account gets a dealer row the first time it enters the seller area.
-  if (profile) {
-    await supabase
-      .from("dealers")
-      .upsert(
-        { profile_id: profile.id },
-        { onConflict: "profile_id", ignoreDuplicates: true },
-      );
-  }
 
   return (
     <div className="min-h-screen">
       <AppHeader email={profile?.email ?? user.email ?? ""} />
-      <DealerNav />
       <main className="p-6">{children}</main>
     </div>
   );

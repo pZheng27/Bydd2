@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { CollectorNav } from "@/components/collector-nav";
-import { type ActiveRole } from "@/app/actions";
 
-export default async function ShopLayout({
+export default async function CollectorLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -32,13 +30,9 @@ export default async function ShopLayout({
       );
   }
 
-  const cookieStore = await cookies();
-  const activeRole =
-    (cookieStore.get("active_role")?.value as ActiveRole) ?? "collector";
-
   return (
     <div className="min-h-screen">
-      <AppHeader email={profile?.email ?? user.email ?? ""} activeRole={activeRole} />
+      <AppHeader email={profile?.email ?? user.email ?? ""} />
       <CollectorNav />
       <main className="p-6">{children}</main>
     </div>
