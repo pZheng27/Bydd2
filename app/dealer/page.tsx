@@ -12,6 +12,11 @@ const LINKS = [
     desc: "Business name, location, and what you carry.",
   },
   {
+    href: "/dealer/offers",
+    title: "Offers",
+    desc: "Offers buyers made on your coins.",
+  },
+  {
     href: "/dealer/requests",
     title: "Requests",
     desc: "Buyer requests routed to you (later).",

@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/dealer", label: "Overview" },
   { href: "/dealer/inventory", label: "Inventory" },
   { href: "/dealer/profile", label: "Profile" },
+  { href: "/dealer/offers", label: "Offers" },
   { href: "/dealer/requests", label: "Requests" },
 ];
 
