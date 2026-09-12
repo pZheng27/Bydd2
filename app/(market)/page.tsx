@@ -6,16 +6,31 @@ import { cn } from "@/lib/utils";
 
 const SORTS = [
   { key: "newest", label: "Newest" },
+  { key: "oldest", label: "Oldest" },
   { key: "price_asc", label: "Price ↑" },
   { key: "price_desc", label: "Price ↓" },
 ];
 
+const inputCls =
+  "rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+
+function toCents(v: string | undefined): number | null {
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : Math.round(n * 100);
+}
+
 export default async function MarketplaceHome({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    sort?: string;
+    min?: string;
+    max?: string;
+  }>;
 }) {
-  const { q = "", sort = "newest" } = await searchParams;
+  const { q = "", sort = "newest", min = "", max = "" } = await searchParams;
   const supabase = await createClient();
 
   let query = supabase
@@ -23,12 +38,33 @@ export default async function MarketplaceHome({
     .select("id, title, price_cents, photos, dealers(business_name)")
     .eq("is_public", true)
     .eq("status", "listed");
+
   if (q) query = query.ilike("title", `%${q}%`);
-  if (sort === "price_asc") query = query.order("price_cents", { ascending: true });
+  const minCents = toCents(min);
+  const maxCents = toCents(max);
+  if (minCents != null) query = query.gte("price_cents", minCents);
+  if (maxCents != null) query = query.lte("price_cents", maxCents);
+
+  if (sort === "oldest")
+    query = query.order("listed_at", { ascending: true, nullsFirst: false });
+  else if (sort === "price_asc")
+    query = query.order("price_cents", { ascending: true });
   else if (sort === "price_desc")
     query = query.order("price_cents", { ascending: false });
   else query = query.order("listed_at", { ascending: false, nullsFirst: false });
+
   const { data: items } = await query.limit(60);
+
+  // Preserve the current filters when building the sort links.
+  function sortHref(key: string) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (min) params.set("min", min);
+    if (max) params.set("max", max);
+    if (key !== "newest") params.set("sort", key);
+    const s = params.toString();
+    return `/${s ? `?${s}` : ""}`;
+  }
 
   return (
     <div>
@@ -37,12 +73,31 @@ export default async function MarketplaceHome({
         Coins listed by dealers. Open to everyone.
       </p>
 
-      <form className="mt-4 flex gap-2" action="/">
+      <form className="mt-4 flex flex-wrap items-center gap-2" action="/">
         <input
           name="q"
           defaultValue={q}
           placeholder="Search by title…"
-          className="w-full max-w-sm rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className={cn(inputCls, "w-full max-w-xs flex-1")}
+        />
+        <input
+          name="min"
+          type="number"
+          min="0"
+          step="1"
+          defaultValue={min}
+          placeholder="Min $"
+          className={cn(inputCls, "w-24")}
+        />
+        <span className="text-sm text-muted-foreground">–</span>
+        <input
+          name="max"
+          type="number"
+          min="0"
+          step="1"
+          defaultValue={max}
+          placeholder="Max $"
+          className={cn(inputCls, "w-24")}
         />
         {sort !== "newest" && <input type="hidden" name="sort" value={sort} />}
         <button className="rounded-md border px-3 py-2 text-sm hover:bg-muted">
@@ -50,27 +105,21 @@ export default async function MarketplaceHome({
         </button>
       </form>
 
-      <div className="mt-3 flex gap-1">
-        {SORTS.map((s) => {
-          const params = new URLSearchParams();
-          if (q) params.set("q", q);
-          if (s.key !== "newest") params.set("sort", s.key);
-          const query = params.toString();
-          return (
-            <Link
-              key={s.key}
-              href={`/${query ? `?${query}` : ""}`}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm",
-                sort === s.key
-                  ? "bg-foreground text-background"
-                  : "border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {s.label}
-            </Link>
-          );
-        })}
+      <div className="mt-3 flex flex-wrap gap-1">
+        {SORTS.map((s) => (
+          <Link
+            key={s.key}
+            href={sortHref(s.key)}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm",
+              sort === s.key
+                ? "bg-foreground text-background"
+                : "border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {s.label}
+          </Link>
+        ))}
       </div>
 
       {items && items.length > 0 ? (
@@ -106,7 +155,7 @@ export default async function MarketplaceHome({
         </div>
       ) : (
         <div className="mt-6 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          {q ? `No coins match "${q}".` : "No coins listed yet."}
+          No coins match your filters.
         </div>
       )}
     </div>
