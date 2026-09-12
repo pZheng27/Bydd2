@@ -16,6 +16,12 @@ export function AppHeader({
         <Link href="/" className="font-semibold">
           Bydd
         </Link>
+        <Link
+          href="/market"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Marketplace
+        </Link>
         <RoleSwitcher active={activeRole} />
       </div>
       <div className="flex items-center gap-3 text-sm">

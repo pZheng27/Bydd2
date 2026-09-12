@@ -35,6 +35,11 @@ export default async function Home() {
 function DealerHome() {
   const links = [
     {
+      href: "/market",
+      title: "Marketplace",
+      desc: "Browse and buy coins from all dealers.",
+    },
+    {
       href: "/dealer/inventory",
       title: "Inventory",
       desc: "Add and manage the coins you carry.",
