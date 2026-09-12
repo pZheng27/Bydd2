@@ -58,6 +58,7 @@ export default async function ItemDetailPage({
           <p className="mt-1 text-sm text-muted-foreground">
             {gradeLabel(item)}
             {item.cert_number ? ` · Cert ${item.cert_number}` : ""}
+            {` · ${item.view_count ?? 0} view${item.view_count === 1 ? "" : "s"}`}
           </p>
         </div>
         <span

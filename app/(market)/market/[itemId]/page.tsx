@@ -33,9 +33,11 @@ export default async function MarketItemPage({
 
   if (!item || !item.is_public || item.status !== "listed") notFound();
 
-  await supabase.rpc("increment_item_view", { p_item_id: itemId });
-
   const isMine = item.dealers?.profile_id === profile?.id;
+  // Count a view — but don't count the seller viewing their own listing.
+  if (!isMine) {
+    await supabase.rpc("increment_item_view", { p_item_id: itemId });
+  }
   const { data: saved } = await supabase
     .from("saved_items")
     .select("id")
@@ -116,7 +118,7 @@ export default async function MarketItemPage({
                   <input type="hidden" name="item_id" value={item.id} />
                   <input type="hidden" name="saved" value={isSaved ? "true" : "false"} />
                   <Button type="submit" variant="outline">
-                    {isSaved ? "Saved ✓" : "Save"}
+                    {isSaved ? "Watching ✓" : "Watch"}
                   </Button>
                 </form>
               </div>

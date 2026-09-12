@@ -25,6 +25,7 @@ export default async function SavedPage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold">Saved</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Your watchlist of coins.</p>
       {saved && saved.length > 0 ? (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {saved.map((s) => {

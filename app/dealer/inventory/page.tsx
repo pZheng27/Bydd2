@@ -52,7 +52,7 @@ export default async function DealerInventoryPage({
   let query = supabase
     .from("inventory_items")
     .select(
-      "id, title, grade, grading_service, designation, status, cost_cents, price_cents, photos",
+      "id, title, grade, grading_service, designation, status, cost_cents, price_cents, photos, view_count",
     )
     .eq("dealer_id", dealer!.id)
     .order("updated_at", { ascending: false });
@@ -101,6 +101,7 @@ export default async function DealerInventoryPage({
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Cost</th>
                 <th className="px-3 py-2 font-medium">Price</th>
+                <th className="px-3 py-2 font-medium">Views</th>
                 <th className="px-3 py-2 font-medium">Rule</th>
                 <th className="px-3 py-2 font-medium">Last activity</th>
               </tr>
@@ -134,6 +135,7 @@ export default async function DealerInventoryPage({
                   </td>
                   <td className="px-3 py-2">{fmtMoney(it.cost_cents)}</td>
                   <td className="px-3 py-2">{fmtMoney(it.price_cents)}</td>
+                  <td className="px-3 py-2">{it.view_count ?? 0}</td>
                   <td className="px-3 py-2 text-muted-foreground">—</td>
                   <td className="px-3 py-2 text-muted-foreground">—</td>
                 </tr>
