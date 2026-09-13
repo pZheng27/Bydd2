@@ -2,7 +2,7 @@
 
 Order (revised 2026-09-11): skeleton → **seller side (manual entry)** →
 **buyer side (marketplace + buying + collection shell)** → item agents →
-catalog & import → collector side → routing → offers (advanced) → demand
+collector side → catalog & import → routing → offers (advanced) → demand
 dashboard & pilot.
 
 > **Plan change (2026-09-11).** At the founder's request we build the **seller
@@ -121,36 +121,42 @@ and explain each change. Your first demo for other dealers.
 
 ---
 
-## Session 4 — Catalog & inventory import (attach catalogs)
+## Session 4 — Collector side (manual-first)
 
-> Read CLAUDE.md and SPEC.md (§5, §9). We're on Session 4. Create migrations for
+> Read CLAUDE.md and SPEC.md (§4 Collector, §6.1). We're on Session 4. The
+> collection shell (an auto-created `collections` row and the My Collection
+> placeholder in the buyer hub) already exists from Session 2; this session fills
+> it in. Because the coin catalog comes next (Session 5), build this
+> **manual-first**, mirroring the seller side: `collection_items` and `wants`
+> migrations (with `coin_type_id` nullable plus hand-entered descriptive fields);
+> a `/collection` list where I add coins by hand; and `/wants` + `/wants/[id]`
+> where I create a want by describing the coin (grade range, budget, notes) — the
+> Add-to-wants button from the marketplace lands here. Add a "Sell this coin"
+> action that copies a collection item into inventory and opens the sell flow.
+> The **set grid, gap detection, and catalog/cert pick arrive in Session 5** once
+> the catalog exists. No photo identification anywhere. One screen at a time.
+
+What you should be able to do after: add coins to your collection by hand and
+create wants — the set-completion grid and gap-to-want flow arrive with the
+catalog next session.
+
+---
+
+## Session 5 — Catalog & inventory import (attach catalogs)
+
+> Read CLAUDE.md and SPEC.md (§5, §9). We're on Session 5. Create migrations for
 > `coin_types`, `set_templates`, `set_slots`, `guide_prices`, `sales_history`.
 > Seed the five set templates in SPEC §9 with every date and mintmark; ask me
 > which Morgan varieties to include first. Build the inventory.csv and sales.csv
 > importers per §9 (tolerate blanks; show me rows you couldn't match instead of
-> failing). Import my CSVs. Then add a way to link my existing hand-entered
-> inventory items to catalog `coin_types` (backfill), and turn on `match_guide`
-> and the guide/sales comps panel now that guide prices exist.
+> failing). Import my CSVs. Then link my hand-entered inventory, collection
+> items, and wants to catalog `coin_types` (backfill), and turn on the collection
+> **set grid + gap detection**, catalog/cert pick on add, `match_guide`, and the
+> guide/sales comps panel.
 
-What you should be able to do after: the five sets exist, my CSVs import, and my
-hand-entered items are linked to the catalog (unlocking gaps, routing, demand).
-
----
-
-## Session 5 — Collector side
-
-> Read CLAUDE.md and SPEC.md (§4 Collector, §6.1). We're on Session 5. The
-> collection shell (an auto-created `collections` row and the My Collection
-> placeholder in the buyer hub) already exists from Session 2; this session fills
-> it in. Build the collector screens: `/collection` set-grid with completion %,
-> `/collection/add` (cert lookup via PCGS or stub, and catalog pick), set- and
-> slot-level grade/budget targets, "Make this a want" from any gap, `/wants` and
-> `/wants/[id]` (the Add-to-wants button from the marketplace lands here now), and
-> a "Sell this coin" action that copies a collection item into inventory and opens
-> `/sell`. No photo identification anywhere. One screen at a time.
-
-What you should be able to do after: enter your collection, see gaps, turn a gap
-into a want, and sell a coin out of your collection.
+What you should be able to do after: the five sets exist, my CSVs import, my
+hand-entered items and collection are linked to the catalog, and the set grid +
+gaps light up (unlocking routing and demand).
 
 ---
 
