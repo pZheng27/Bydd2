@@ -143,6 +143,15 @@ export default async function MarketItemPage({
                   Send offer
                 </Button>
               </form>
+
+              <Link
+                href={`/messages?with=${item.dealers?.profile_id}&item=${item.id}`}
+                className="block"
+              >
+                <Button variant="outline" className="w-full">
+                  Message seller
+                </Button>
+              </Link>
             </div>
           )}
 

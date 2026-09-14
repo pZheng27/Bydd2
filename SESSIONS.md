@@ -121,6 +121,29 @@ and explain each change. Your first demo for other dealers.
 
 ---
 
+## Session 3b — Conversational item agents + notifications
+
+Builds on the Session 3 rule engine. Two related pieces:
+
+> **Talk to the item.** A chat on each listing where the owner configures the
+> item in plain English, powered by Claude (Anthropic TS SDK, tool use). Claude
+> calls tools that write the deterministic system — `set_pricing_rule`,
+> `set_price`, `set_status`, `update_listing`, `create_alert` — plus read tools
+> (`get_spot`, `get_comps`). Guardrails live in the tools (never below
+> cost/floor, owner-only); Claude configures, the engine executes. Server-side
+> only; needs an Anthropic API key.
+>
+> **Notifications.** An `alerts` table + a checker cron + delivery (Resend email
+> and an in-app inbox) — the home for alerts on **offers, sales, messages, and
+> AI updates** (repricing, "gold dropped 3%", recommendations, and any alert set
+> up by chatting with an item). Transactional events (offer/sale) and the
+> buyer↔seller **messaging** (built during the buyer side) plug into this system.
+
+What you should be able to do after: tell a coin how to price itself and set
+alerts by chatting; get notified about offers, sales, messages, and agent moves.
+
+---
+
 ## Session 4 — Collector side (manual-first)
 
 > Read CLAUDE.md and SPEC.md (§4 Collector, §6.1). We're on Session 4. The

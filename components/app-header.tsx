@@ -13,6 +13,12 @@ export function AppHeader({ email }: { email: string }) {
         <RoleNav />
       </div>
       <div className="flex items-center gap-3 text-sm">
+        <Link
+          href="/messages"
+          className="font-medium text-muted-foreground hover:text-foreground"
+        >
+          Messages
+        </Link>
         <span className="text-muted-foreground">{email}</span>
         <form action={signOut}>
           <button className="rounded-md border px-3 py-1.5 font-medium hover:bg-muted">
