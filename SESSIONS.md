@@ -142,7 +142,9 @@ Builds on the Session 3 rule engine. Two related pieces:
 > tools (`get_spot`, `get_comps`, `get_stats`). Guardrails live in the tools
 > (never below cost/floor, max daily move, owner-only); Claude *configures*, the
 > deterministic engine *executes* and explains each change. Server-side only;
-> needs an Anthropic API key.
+> needs an Anthropic API key. **This chat replaces the manual pricing-rule
+> editor** — the form built in Part A is interim scaffolding to test the engine;
+> once the chat lands, demote it to a hidden "advanced" fallback or remove it.
 >
 > **Notifications.** An `alerts` table + a checker cron + delivery (Resend email
 > and an in-app inbox) — the home for alerts on **offers, sales, messages, and
