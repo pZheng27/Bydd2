@@ -6,6 +6,7 @@ import { publicPhotoUrl } from "@/lib/photos";
 import { setItemListed, deleteItem } from "@/app/dealer/inventory/actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PricingPanel } from "@/components/pricing-panel";
 
 const STATUS_STYLES: Record<string, string> = {
   listed: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
@@ -36,6 +37,22 @@ export default async function ItemDetailPage({
     .eq("id", id)
     .single();
   if (!item) notFound();
+
+  const { data: rule } = await supabase
+    .from("pricing_rules")
+    .select("params")
+    .eq("inventory_item_id", id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+  const { data: spot } = await supabase
+    .from("spot_prices")
+    .select("price_cents_per_oz")
+    .eq("metal", "gold")
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const spotCents = spot?.price_cents_per_oz ?? null;
 
   const listed = item.status === "listed";
   const photos: string[] = item.photos ?? [];
@@ -137,10 +154,13 @@ export default async function ItemDetailPage({
         </form>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <Panel title="Pricing rule" note="Auto-repricing rules arrive in Session 3." />
-        <Panel title="Activity" note="Repricing history and events arrive in Session 3." />
-        <Panel title="Comps" note="Guide values and past sales arrive with the catalog (Session 4)." />
+      <div className="mt-8">
+        <PricingPanel item={item} rule={rule} spotCents={spotCents} />
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <Panel title="Activity" note="Repricing history arrives in Part B." />
+        <Panel title="Comps" note="Guide values and past sales arrive with the catalog (S5)." />
         <Panel title="Demand" note="Open wants vs. supply arrives once collectors join." />
       </div>
     </div>
