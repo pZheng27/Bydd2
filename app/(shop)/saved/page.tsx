@@ -17,18 +17,28 @@ export default async function SavedPage() {
   const { data: saved } = await supabase
     .from("saved_items")
     .select(
-      "id, inventory_items(id, title, price_cents, photos, status, is_public)",
+      "id, inventory_item_id, inventory_items(id, title, price_cents, photos, status, is_public)",
     )
     .eq("profile_id", profile!.id)
     .order("created_at", { ascending: false });
+
+  // Hide coins you've already bought.
+  const { data: myOrders } = await supabase
+    .from("orders")
+    .select("inventory_item_id")
+    .eq("buyer_profile_id", profile!.id);
+  const boughtIds = new Set((myOrders ?? []).map((o) => o.inventory_item_id));
+  const items = (saved ?? []).filter(
+    (s) => !boughtIds.has((s as { inventory_item_id?: string }).inventory_item_id),
+  );
 
   return (
     <div>
       <h1 className="text-2xl font-semibold">Saved</h1>
       <p className="mt-1 text-sm text-muted-foreground">Your watchlist of coins.</p>
-      {saved && saved.length > 0 ? (
+      {items.length > 0 ? (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {saved.map((s) => {
+          {items.map((s) => {
             const it = (
               s as {
                 inventory_items?: {
