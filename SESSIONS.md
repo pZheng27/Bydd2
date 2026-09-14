@@ -150,6 +150,14 @@ Builds on the Session 3 rule engine. Two related pieces:
 > up by chatting with an item). Transactional events (offer/sale) and the
 > buyer↔seller **messaging** (built during the buyer side) plug into this system.
 
+> **Web research (advisory).** The agent can use Claude's web search / web fetch
+> to pull **recent auction comps and events** ("a similar 1893-S is up at
+> Heritage, closes Friday") and price references — shown with **source + date**,
+> used to *propose* a price/rule or fire an alert, never to auto-reprice blindly.
+> A cached "web comp" (source + timestamp) can feed a deterministic rule.
+> Authoritative guide values come from the **PCGS API** (S5); web covers auctions
+> and fallback comps.
+>
 > **End goal — instructions at listing.** The same parse-to-rule capability is
 > wired into the **Add-item / listing flow**: a seller types pricing (and alert)
 > instructions when they list, and the item starts self-pricing the moment it
