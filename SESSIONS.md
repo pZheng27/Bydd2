@@ -98,6 +98,12 @@ empty My Collection in the buyer hub.
 
 Split into three prompts, in order (see SPEC §6.3).
 
+The engine is a **deterministic rule engine** with an extensible `params` (jsonb)
+model, so a rule can key off multiple **signals — spot, views, watches, comps,
+and time** — not just spot. Start with spot + floor, add the rest in Part C.
+Prices always move by rule (predictable, auditable, self-explaining); **Session
+3.5** is the plain-English way to set any of these by chatting with the item.
+
 **3a — Spot and the first rule.** Spot poller (Vercel Cron every 15 min into
 `spot_prices`; seed a drifting fake series if no API key). Implement
 `evaluateRule` in `lib/domain/pricing` for `spot_plus_pct` and `floor` as pure,
@@ -110,28 +116,33 @@ inventory. Explain the math before writing tests.
 a >0.5% spot move or a rule edit; write a `repriced` `agent_events` row with a
 one-sentence explanation; build the activity feed on item detail.
 
-**3c — More rules + comps.** Add `step_down`, and add `match_guide` **stubbed**
-until the catalog exists. Add the `rule_visible` panel + price-history chart on
-the public listing, and this week's view count to the activity feed. Leave the
-comps panel as a placeholder ("comps arrive with the catalog"). Write a plain
-summary of how the agent works in NOTES.md.
+**3c — More rules + signals.** Add `step_down`; add **demand-based adjustments**
+keyed off **views and watches** (e.g., nudge up when interest is high); add
+**basic comps** from your own recent sold prices (full guide-based comps +
+`match_guide` arrive with the catalog in S5). Add the `rule_visible` panel +
+price-history chart on the public listing and the view count to the activity
+feed. Write a plain summary of how the agent works in NOTES.md.
 
 What you should be able to do after: bullion-linked coins reprice on gold moves
 and explain each change. Your first demo for other dealers.
 
 ---
 
-## Session 3b — Conversational item agents + notifications
+## Session 3.5 — Talk to your items + notifications
 
 Builds on the Session 3 rule engine. Two related pieces:
 
-> **Talk to the item.** A chat on each listing where the owner configures the
-> item in plain English, powered by Claude (Anthropic TS SDK, tool use). Claude
-> calls tools that write the deterministic system — `set_pricing_rule`,
-> `set_price`, `set_status`, `update_listing`, `create_alert` — plus read tools
-> (`get_spot`, `get_comps`). Guardrails live in the tools (never below
-> cost/floor, owner-only); Claude configures, the engine executes. Server-side
-> only; needs an Anthropic API key.
+> **Talk to the item — including how it prices.** A chat on each listing where
+> the owner configures **and re-prices** the item in plain English, powered by
+> Claude (Anthropic TS SDK, tool use). "Price this off spot, nudge up as
+> views/watches climb, but stay near what similar coins sold for" becomes a saved
+> rule. Claude calls tools that write the deterministic system —
+> `set_pricing_rule` (keyed off any signal: **spot, views, watches, comps,
+> time**), `set_price`, `set_status`, `update_listing`, `create_alert` — plus read
+> tools (`get_spot`, `get_comps`, `get_stats`). Guardrails live in the tools
+> (never below cost/floor, max daily move, owner-only); Claude *configures*, the
+> deterministic engine *executes* and explains each change. Server-side only;
+> needs an Anthropic API key.
 >
 > **Notifications.** An `alerts` table + a checker cron + delivery (Resend email
 > and an in-app inbox) — the home for alerts on **offers, sales, messages, and
