@@ -150,8 +150,14 @@ Builds on the Session 3 rule engine. Two related pieces:
 > up by chatting with an item). Transactional events (offer/sale) and the
 > buyer↔seller **messaging** (built during the buyer side) plug into this system.
 
-What you should be able to do after: tell a coin how to price itself and set
-alerts by chatting; get notified about offers, sales, messages, and agent moves.
+> **End goal — instructions at listing.** The same parse-to-rule capability is
+> wired into the **Add-item / listing flow**: a seller types pricing (and alert)
+> instructions when they list, and the item starts self-pricing the moment it
+> goes live.
+
+What you should be able to do after: **give an item pricing and alert
+instructions in plain English — including right when you list it** — and it
+self-prices and notifies you (offers, sales, messages, and agent moves).
 
 ---
 
