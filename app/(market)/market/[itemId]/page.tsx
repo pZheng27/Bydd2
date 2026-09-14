@@ -5,6 +5,7 @@ import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
 import { toggleSave, makeOffer } from "@/app/(market)/actions";
 import { Button } from "@/components/ui/button";
+import { MessageSeller } from "@/components/message-seller";
 
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -144,14 +145,11 @@ export default async function MarketItemPage({
                 </Button>
               </form>
 
-              <Link
-                href={`/messages?with=${item.dealers?.profile_id}&item=${item.id}`}
-                className="block"
-              >
-                <Button variant="outline" className="w-full">
-                  Message seller
-                </Button>
-              </Link>
+              <MessageSeller
+                recipientId={item.dealers?.profile_id}
+                itemId={item.id}
+                sellerName={item.dealers?.business_name}
+              />
             </div>
           )}
 
