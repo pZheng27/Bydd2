@@ -2,7 +2,7 @@
 
 Order (revised 2026-09-11): skeleton → **seller side (manual entry)** →
 **buyer side (marketplace + buying + collection shell)** → item agents →
-collector side → catalog & import → routing → offers (advanced) → demand
+collector side → catalog & import → routing → buyer agent → demand
 dashboard & pilot.
 
 > **Plan change (2026-09-11).** At the founder's request we build the **seller
@@ -200,20 +200,33 @@ dealers' inboxes, with the reasoning visible in admin.
 
 ---
 
-## Session 7 — Offers (advanced)
+## Session 7 — Buyer agent (offers, gaps, conditions)
 
-> Read CLAUDE.md and SPEC.md (§6.4). We're on Session 7. Basic single offers
-> (buyer → seller on a listing, with accept/decline) already exist from Session 2;
-> this session adds the rest of §6.4: counters that link to the original;
-> **parallel offers** (one price to up to 5 dealers sharing a `parallel_group_id`;
-> first acceptance wins, the rest cancelled "filled_elsewhere"; a "parallel"
-> badge); 48-hour expiry via cron; offers a dealer sends **from a routed request**;
-> and unifying acceptance through `/checkout/[offerId]`. Then turn on the daily
-> `demand_update` and `recommendation` agent events and fill in the demand panel on
-> item detail. Test the parallel case with the three demo dealers.
+The buyer-side AI agent — the counterpart to the seller's item agents. Builds on
+the collection (S4), catalog + set gaps (S5), basic offers (S2), and the Claude
+tool-use + notifications layer (S3b).
 
-What you should be able to do after: run the core demo end to end (browse → want →
-routed → offer → accept → simulated sale), including parallel-offer clearing.
+> Read CLAUDE.md and SPEC.md (§6.4, §6.5). We're on Session 7. Build a
+> conversational **buyer agent** the collector can talk to. It knows what they
+> own and what's still missing (set gaps from S5) and can:
+> - **highlight gaps and recommend the next pieces** to complete a set within a
+>   budget, matching open gaps to current listings;
+> - **make offers** — single, **parallel** (one price to up to 5 dealers'
+>   matching items sharing a `parallel_group_id`; first acceptance wins, the rest
+>   cancelled "filled_elsewhere"; a "parallel" badge), and **conditional /
+>   standing** (auto-offer when a matching coin lists or drops below a target,
+>   optionally contingent on grade/cert), evaluated by a cron using the S3b
+>   alerts infrastructure;
+> - **counter** offers, with 48-hour expiry via cron, and acceptance unified
+>   through `/checkout/[offerId]`.
+> The agent runs on Claude tool-use (read tools: collection, gaps, listings,
+> spot; write tools: create offer / parallel group / conditional rule / alert).
+> Guardrails: budget caps, owner-only, and confirm before any real offer fires.
+> Turn on the daily `demand_update` / `recommendation` events and the demand panel.
+
+What you should be able to do after: chat with your buyer agent — it points out
+what's missing, proposes coins to fill gaps within budget, and places single,
+parallel, or conditional offers for you; parallel clearing cancels the losers.
 
 ---
 
