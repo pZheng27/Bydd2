@@ -60,15 +60,15 @@ describe("evaluateRule (spot_plus_pct)", () => {
     expect(r.applied.cost).toBe(true);
   });
 
-  it("limits how far the price moves in one step", () => {
-    // base ≈ $2,657 is a >5% jump from $2,500 → clamp to +5% = $2,625
+  it("raises a below-cost half-ounce example up to cost (the demo case)", () => {
+    // gold $2,633.44/oz × 0.5 oz × 1.04 = $1,369.39 → below $2,500 cost → $2,500
     const r = evaluateRule({
-      currentPriceCents: 250000,
-      rule: goldRule,
-      guardrails: { maxDailyMovePct: 5 },
-      context: { spotPerOzCents: 264100 },
+      currentPriceCents: 300000,
+      rule: { kind: "spot_plus_pct", metal: "gold", fineWeightOz: 0.5, pctOverSpot: 4 },
+      guardrails: { floorCents: 90000, costCents: 250000 },
+      context: { spotPerOzCents: 263344 },
     });
-    expect(r.priceCents).toBe(262500);
-    expect(r.applied.dailyMove).toBe(true);
+    expect(r.priceCents).toBe(250000);
+    expect(r.applied.cost).toBe(true);
   });
 });

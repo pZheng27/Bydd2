@@ -15,7 +15,6 @@ type PanelItem = {
   id: string;
   price_cents: number;
   cost_cents: number | null;
-  max_daily_move_pct: number | null;
 };
 type RuleParams = {
   metal?: string;
@@ -50,17 +49,14 @@ export function PricingPanel({
           guardrails: {
             floorCents: p.floor_cents ?? null,
             costCents: item.cost_cents ?? null,
-            maxDailyMovePct: item.max_daily_move_pct ?? null,
           },
         })
       : null;
 
   const bounds = preview
-    ? [
-        preview.applied.floor && "floor",
-        preview.applied.cost && "cost",
-        preview.applied.dailyMove && "max move",
-      ].filter(Boolean)
+    ? [preview.applied.floor && "floor", preview.applied.cost && "cost"].filter(
+        Boolean,
+      )
     : [];
 
   return (
@@ -139,16 +135,6 @@ export function PricingPanel({
             type="number"
             step="0.01"
             defaultValue={p.floor_cents != null ? p.floor_cents / 100 : ""}
-            className={inputCls}
-          />
-        </div>
-        <div>
-          <label className="text-xs font-medium">Max move %/update</label>
-          <input
-            name="max_move"
-            type="number"
-            step="0.5"
-            defaultValue={item.max_daily_move_pct ?? 5}
             className={inputCls}
           />
         </div>

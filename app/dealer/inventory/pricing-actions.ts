@@ -21,7 +21,6 @@ export async function savePricingRule(formData: FormData) {
   const pctOverSpot = num(formData.get("pct_over_spot")) ?? 0;
   const floorDollars = num(formData.get("floor"));
   const floorCents = floorDollars == null ? null : Math.round(floorDollars * 100);
-  const maxMove = num(formData.get("max_move")) ?? 5;
 
   await supabase.from("pricing_rules").delete().eq("inventory_item_id", itemId);
   await supabase.from("pricing_rules").insert({
@@ -35,10 +34,6 @@ export async function savePricingRule(formData: FormData) {
     },
     is_active: true,
   });
-  await supabase
-    .from("inventory_items")
-    .update({ max_daily_move_pct: maxMove })
-    .eq("id", itemId);
 
   redirect(`/dealer/inventory/${itemId}`);
 }
