@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAnthropic, PRICING_MODEL } from "@/lib/anthropic";
 import { evaluateRule, type EvaluateResult, type Metal } from "@/lib/domain/pricing";
 import { itemSignals, effectiveGoldCents } from "@/lib/pricing-context";
+import { COMP_DOMAINS, MAX_COMP_SEARCHES, COMP_GUIDANCE } from "@/lib/comps";
 import { fmtMoney } from "@/lib/format";
 
 type RuleParams = {
@@ -263,7 +264,9 @@ Guidelines:
 - Keep replies short, concrete, and in plain dealer language. No code, no JSON.
 - Use the dealer's own numbers. Never invent a weight, cost, or metal. If you need the fine (pure metal) weight or the metal to compute a price and it isn't known, ask for it.
 - After you change settings, state the resulting suggested price (the tool result gives it to you) and that they can hit "Reprice now" or wait for the daily update.
-- You only configure the engine; never claim you'll move the price yourself outside it.`;
+- You only configure the engine; never claim you'll move the price yourself outside it.
+
+Looking up comps: You can search approved sources with the web_search tool, but ONLY when the dealer asks about market value, recent sales, or "what are these going for" — not for routine rule edits. ${COMP_GUIDANCE} Findings are ADVISORY: summarize what you found with its source and date, and you may recommend a rule change, but do NOT call set_pricing_rule based only on web comps — ask the dealer to confirm first.`;
 
   const messages: Anthropic.MessageParam[] = [
     ...(hist ?? []).map((h) => ({
@@ -273,17 +276,27 @@ Guidelines:
     { role: "user", content: text },
   ];
 
+  const tools = [
+    RULE_TOOL,
+    {
+      type: "web_search_20260209",
+      name: "web_search",
+      max_uses: MAX_COMP_SEARCHES,
+      allowed_domains: COMP_DOMAINS,
+    },
+  ] as Anthropic.MessageCreateParams["tools"];
+
   let ruleChanged = false;
   let finalText = "";
   try {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
       const resp = await anthropic.messages.create({
         model: PRICING_MODEL,
         max_tokens: 4096,
         thinking: { type: "adaptive" },
         output_config: { effort: "low" },
         system,
-        tools: [RULE_TOOL],
+        tools,
         messages,
       });
       messages.push({ role: "assistant", content: resp.content });
@@ -314,6 +327,12 @@ Guidelines:
           }
         }
         messages.push({ role: "user", content: results });
+        continue;
+      }
+
+      // The web_search server tool can make the model pause mid-turn; its
+      // results are already in resp.content, so just let the turn continue.
+      if (resp.stop_reason === "pause_turn") {
         continue;
       }
 
