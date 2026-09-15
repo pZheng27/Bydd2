@@ -86,6 +86,19 @@ export async function savePricingRule(formData: FormData) {
   redirect(`/dealer/inventory/${itemId}`);
 }
 
+/** Show or hide the buyer-facing "How this price moves" note for an item. */
+export async function setRuleVisible(formData: FormData) {
+  const itemId = String(formData.get("item_id") ?? "");
+  const visible = formData.get("visible") === "true";
+  if (!itemId) return;
+  const supabase = await createClient();
+  await supabase
+    .from("inventory_items")
+    .update({ rule_visible: visible })
+    .eq("id", itemId);
+  redirect(`/dealer/inventory/${itemId}`);
+}
+
 /** Remove the item's pricing rule. */
 export async function removePricingRule(formData: FormData) {
   const itemId = String(formData.get("item_id") ?? "");

@@ -62,6 +62,18 @@ export default async function MarketItemPage({
   }
   const photos: string[] = item.photos ?? [];
 
+  // Buyer-facing "how this price moves" — safe, number-free, and only present
+  // when the seller turned it on (the function enforces both).
+  const { data: explainerRaw } = await supabase.rpc("price_explainer", {
+    p_item_id: itemId,
+  });
+  const explainer = explainerRaw as {
+    metal: string;
+    spot_linked: boolean;
+    uses_comp: boolean;
+    demand_bump: boolean;
+  } | null;
+
   return (
     <div className="mx-auto max-w-4xl">
       <Link href="/" className="text-sm text-muted-foreground hover:underline">
@@ -160,6 +172,26 @@ export default async function MarketItemPage({
                 itemId={item.id}
                 sellerName={item.dealers?.business_name}
               />
+            </div>
+          )}
+
+          {explainer && (
+            <div className="mt-6 rounded-lg border bg-muted/30 p-4 text-sm">
+              <div className="font-medium">How this price moves</div>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                {explainer.spot_linked && (
+                  <li>
+                    Linked to the live {explainer.metal} price — it updates
+                    automatically as the market moves.
+                  </li>
+                )}
+                {explainer.uses_comp && (
+                  <li>Kept in line with recent sales of comparable coins.</li>
+                )}
+                {explainer.demand_bump && (
+                  <li>May rise as interest in this coin grows.</li>
+                )}
+              </ul>
             </div>
           )}
 

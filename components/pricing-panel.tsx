@@ -5,6 +5,7 @@ import {
   savePricingRule,
   removePricingRule,
   repriceItem,
+  setRuleVisible,
   setTestGold,
   clearTestGold,
 } from "@/app/dealer/inventory/pricing-actions";
@@ -37,6 +38,7 @@ export function PricingPanel({
   views = 0,
   watches = 0,
   compCents = null,
+  ruleVisible = false,
   testGoldActive = false,
   showTestControls = false,
 }: {
@@ -46,6 +48,7 @@ export function PricingPanel({
   views?: number;
   watches?: number;
   compCents?: number | null;
+  ruleVisible?: boolean;
   testGoldActive?: boolean;
   showTestControls?: boolean;
 }) {
@@ -170,6 +173,32 @@ export function PricingPanel({
           )}
         </div>
       )}
+
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-md border p-3">
+        <div className="text-sm">
+          <div className="font-medium">Show buyers how this price moves</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {ruleVisible
+              ? "Buyers see a plain-English note that this price tracks the metal market. Your %, floor, and cost stay hidden."
+              : "Hidden — buyers just see the price."}
+          </div>
+        </div>
+        <form action={setRuleVisible}>
+          <input type="hidden" name="item_id" value={item.id} />
+          <input
+            type="hidden"
+            name="visible"
+            value={ruleVisible ? "false" : "true"}
+          />
+          <Button
+            type="submit"
+            size="sm"
+            variant={ruleVisible ? "outline" : "default"}
+          >
+            {ruleVisible ? "Hide" : "Show buyers"}
+          </Button>
+        </form>
+      </div>
 
       <form action={savePricingRule} className="mt-4 grid grid-cols-2 gap-3">
         <input type="hidden" name="item_id" value={item.id} />

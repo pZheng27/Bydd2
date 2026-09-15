@@ -206,6 +206,7 @@ export default async function ItemDetailPage({
           views={item.view_count ?? 0}
           watches={watches}
           compCents={compCents}
+          ruleVisible={item.rule_visible ?? false}
           testGoldActive={testGoldActive}
           showTestControls={showTestControls}
         />
