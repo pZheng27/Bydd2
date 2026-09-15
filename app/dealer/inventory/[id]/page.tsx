@@ -75,6 +75,14 @@ export default async function ItemDetailPage({
     sellerProfileId: dealer?.profile_id ?? null,
   });
 
+  // Cost is private (owner-only companion table), not on the item row.
+  const { data: costRow } = await supabase
+    .from("inventory_costs")
+    .select("cost_cents")
+    .eq("inventory_item_id", id)
+    .maybeSingle();
+  const costCents = costRow?.cost_cents ?? null;
+
   const { data: events } = await supabase
     .from("agent_events")
     .select("id, kind, summary, created_at")
@@ -150,7 +158,7 @@ export default async function ItemDetailPage({
           <div className="text-sm text-muted-foreground">Price</div>
           <div className="text-xl font-semibold">{fmtMoney(item.price_cents)}</div>
           <div className="mt-2 text-sm text-muted-foreground">
-            Your cost: {fmtMoney(item.cost_cents)}
+            Your cost: {fmtMoney(costCents)}
           </div>
         </div>
         <div className="rounded-xl border p-4 text-sm">
@@ -185,7 +193,7 @@ export default async function ItemDetailPage({
 
       <div className="mt-8">
         <PricingPanel
-          item={item}
+          item={{ ...item, cost_cents: costCents }}
           rule={rule}
           spotCents={spotCents}
           views={item.view_count ?? 0}

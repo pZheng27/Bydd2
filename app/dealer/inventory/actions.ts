@@ -61,20 +61,30 @@ export async function addInventoryItem(formData: FormData) {
   const shippingNote = str(formData.get("shipping_note"));
   const photos = formData.getAll("photos").map(String).filter(Boolean);
 
-  await supabase.from("inventory_items").insert({
-    dealer_id: dealer.id,
-    title,
-    grading_service: gradingService,
-    cert_number: certNumber,
-    cost_cents: costCents,
-    price_cents: priceCents,
-    description,
-    shipping_note: shippingNote,
-    photos,
-    status: "listed",
-    is_public: true,
-    listed_at: new Date().toISOString(),
-  });
+  const { data: created } = await supabase
+    .from("inventory_items")
+    .insert({
+      dealer_id: dealer.id,
+      title,
+      grading_service: gradingService,
+      cert_number: certNumber,
+      price_cents: priceCents,
+      description,
+      shipping_note: shippingNote,
+      photos,
+      status: "listed",
+      is_public: true,
+      listed_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  // Cost is private (a dealer's margin) — stored in an owner-only table.
+  if (created && costCents != null) {
+    await supabase
+      .from("inventory_costs")
+      .insert({ inventory_item_id: created.id, cost_cents: costCents });
+  }
 
   redirect("/dealer/inventory");
 }

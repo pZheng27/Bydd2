@@ -52,12 +52,24 @@ export default async function DealerInventoryPage({
   let query = supabase
     .from("inventory_items")
     .select(
-      "id, title, grade, grading_service, designation, status, cost_cents, price_cents, photos, view_count",
+      "id, title, grade, grading_service, designation, status, price_cents, photos, view_count",
     )
     .eq("dealer_id", dealer!.id)
     .order("updated_at", { ascending: false });
   if (status !== "all") query = query.eq("status", status);
   const { data: items } = await query;
+
+  // Costs live in an owner-only companion table — look them up for these items.
+  const ids = (items ?? []).map((i) => i.id);
+  const costByItem = new Map<string, number | null>();
+  if (ids.length) {
+    const { data: costs } = await supabase
+      .from("inventory_costs")
+      .select("inventory_item_id, cost_cents")
+      .in("inventory_item_id", ids);
+    for (const c of costs ?? [])
+      costByItem.set(c.inventory_item_id, c.cost_cents);
+  }
 
   return (
     <div>
@@ -133,7 +145,9 @@ export default async function DealerInventoryPage({
                   <td className="px-3 py-2">
                     <StatusBadge status={it.status} />
                   </td>
-                  <td className="px-3 py-2">{fmtMoney(it.cost_cents)}</td>
+                  <td className="px-3 py-2">
+                    {fmtMoney(costByItem.get(it.id) ?? null)}
+                  </td>
                   <td className="px-3 py-2">{fmtMoney(it.price_cents)}</td>
                   <td className="px-3 py-2">{it.view_count ?? 0}</td>
                   <td className="px-3 py-2 text-muted-foreground">—</td>

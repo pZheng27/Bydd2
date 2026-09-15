@@ -143,7 +143,7 @@ export async function repriceItem(formData: FormData) {
 
   const { data: item } = await supabase
     .from("inventory_items")
-    .select("price_cents, cost_cents, title, view_count, dealer_id")
+    .select("price_cents, title, view_count, dealer_id")
     .eq("id", itemId)
     .single();
   if (!item) redirect(`/dealer/inventory/${itemId}`);
@@ -174,6 +174,14 @@ export async function repriceItem(formData: FormData) {
     sellerProfileId: dealer?.profile_id ?? null,
   });
 
+  // Cost is private — read it from the owner-only companion table.
+  const { data: costRow } = await supabase
+    .from("inventory_costs")
+    .select("cost_cents")
+    .eq("inventory_item_id", itemId)
+    .maybeSingle();
+  const costCents = costRow?.cost_cents ?? null;
+
   const result = evaluateRule({
     currentPriceCents: item.price_cents,
     rule: {
@@ -190,7 +198,7 @@ export async function repriceItem(formData: FormData) {
     },
     guardrails: {
       floorCents: params.floor_cents ?? null,
-      costCents: item.cost_cents ?? null,
+      costCents: costCents,
       maxDailyMovePct: params.max_daily_move_pct ?? null,
     },
     signals: {
