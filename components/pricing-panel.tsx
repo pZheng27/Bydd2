@@ -21,6 +21,7 @@ type RuleParams = {
   fine_weight_oz?: number | null;
   pct_over_spot?: number | null;
   floor_cents?: number | null;
+  max_daily_move_pct?: number | null;
 };
 
 export function PricingPanel({
@@ -49,14 +50,17 @@ export function PricingPanel({
           guardrails: {
             floorCents: p.floor_cents ?? null,
             costCents: item.cost_cents ?? null,
+            maxDailyMovePct: p.max_daily_move_pct ?? null,
           },
         })
       : null;
 
   const bounds = preview
-    ? [preview.applied.floor && "floor", preview.applied.cost && "cost"].filter(
-        Boolean,
-      )
+    ? [
+        preview.applied.floor && "floor",
+        preview.applied.cost && "cost",
+        preview.applied.dailyMove && "max move",
+      ].filter(Boolean)
     : [];
 
   return (

@@ -60,7 +60,7 @@ describe("evaluateRule (spot_plus_pct)", () => {
     expect(r.applied.cost).toBe(true);
   });
 
-  it("raises a below-cost half-ounce example up to cost (the demo case)", () => {
+  it("raises a below-cost half-ounce example up to cost (the demo case, no max-move)", () => {
     // gold $2,633.44/oz × 0.5 oz × 1.04 = $1,369.39 → below $2,500 cost → $2,500
     const r = evaluateRule({
       currentPriceCents: 300000,
@@ -70,5 +70,17 @@ describe("evaluateRule (spot_plus_pct)", () => {
     });
     expect(r.priceCents).toBe(250000);
     expect(r.applied.cost).toBe(true);
+  });
+
+  it("honors an opt-in max-move cap when the rule sets one", () => {
+    // same demo case, but with a 5% cap: $3,000 can only drop to $2,850 this run
+    const r = evaluateRule({
+      currentPriceCents: 300000,
+      rule: { kind: "spot_plus_pct", metal: "gold", fineWeightOz: 0.5, pctOverSpot: 4 },
+      guardrails: { floorCents: 90000, costCents: 250000, maxDailyMovePct: 5 },
+      context: { spotPerOzCents: 263344 },
+    });
+    expect(r.priceCents).toBe(285000);
+    expect(r.applied.dailyMove).toBe(true);
   });
 });

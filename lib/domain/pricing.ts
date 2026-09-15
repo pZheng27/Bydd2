@@ -2,6 +2,10 @@
 // Pure functions — no DB, no I/O — so they're easy to unit-test.
 // Built "signal-ready": the context carries spot now, and views/watches/comps/
 // time for later parts. Prices always move by rule, predictably and explainably.
+//
+// Guardrails are OPT-IN per rule: floor and max-move apply only when the rule
+// sets them; never-below-cost applies when a cost is known. The chat (Session
+// 3.5) is how sellers turn these on in plain English.
 
 export type Metal = "gold" | "silver" | "copper" | "nickel" | "clad" | "other";
 
@@ -30,6 +34,9 @@ export type Guardrails = {
   floorCents?: number | null;
   /** Never price below what you paid, in cents. */
   costCents?: number | null;
+  /** Optional cap on how far the price may move per evaluation. Off unless set
+   * (e.g. a seller says "don't drop more than 5% per update" via the chat). */
+  maxDailyMovePct?: number | null;
 };
 
 export type EvaluateInput = {
@@ -45,7 +52,7 @@ export type EvaluateResult = {
   /** True if it differs from currentPriceCents. */
   changed: boolean;
   /** Which guardrails bound the result. */
-  applied: { floor: boolean; cost: boolean };
+  applied: { floor: boolean; cost: boolean; dailyMove: boolean };
 };
 
 const round = (n: number) => Math.round(n);
@@ -60,13 +67,14 @@ export function spotPlusPctPrice(
 }
 
 /**
- * Evaluate a pricing rule against the current context, applying guardrails:
- * a floor and never-below-cost. Pure and deterministic. Returns the price
- * unchanged when it can't compute (e.g. no spot yet).
+ * Evaluate a pricing rule against the current context, applying guardrails in
+ * order: floor, never-below-cost, then (if set) a max per-evaluation move.
+ * Pure and deterministic. Returns the price unchanged when it can't compute
+ * (e.g. no spot yet).
  */
 export function evaluateRule(input: EvaluateInput): EvaluateResult {
   const { currentPriceCents, rule, context, guardrails = {} } = input;
-  const applied = { floor: false, cost: false };
+  const applied = { floor: false, cost: false, dailyMove: false };
 
   // 1) Base price from the primary rule.
   let target: number | null = null;
@@ -93,6 +101,20 @@ export function evaluateRule(input: EvaluateInput): EvaluateResult {
     applied.cost = true;
   }
   target = Math.max(target, hardMin);
+
+  // 3) Optional max-move cap (opt-in per rule; off unless set).
+  if (
+    guardrails.maxDailyMovePct != null &&
+    guardrails.maxDailyMovePct > 0 &&
+    currentPriceCents > 0
+  ) {
+    const up = round(currentPriceCents * (1 + guardrails.maxDailyMovePct / 100));
+    const down = round(currentPriceCents * (1 - guardrails.maxDailyMovePct / 100));
+    const clamped = Math.min(Math.max(target, down), up);
+    if (clamped !== target) applied.dailyMove = true;
+    // A downward clamp must still respect the hard minimum.
+    target = Math.max(clamped, hardMin);
+  }
 
   return { priceCents: target, changed: target !== currentPriceCents, applied };
 }
