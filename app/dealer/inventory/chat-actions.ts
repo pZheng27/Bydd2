@@ -97,7 +97,9 @@ export async function sendChatMessage(
 
   const { data: item } = await supabase
     .from("inventory_items")
-    .select("id, title, price_cents, view_count, dealer_id")
+    .select(
+      "id, title, price_cents, view_count, dealer_id, series, year, mintmark, variety, metal, fine_weight_oz, grade, designation, grading_service, cert_number, description",
+    )
     .eq("id", itemId)
     .single();
   if (!item) return { ok: false, error: "Item not found." };
@@ -146,17 +148,26 @@ export async function sendChatMessage(
     .maybeSingle();
   const costCents = costRow?.cost_cents ?? null;
 
+  // Effective metal for a rule = what the dealer set, else the coin's listed
+  // metal, else gold. We only have a live GOLD spot feed, so a spot-linked price
+  // is only computable when that metal is gold.
+  const effMetal = (p: RuleParams): string =>
+    (p.metal ?? item!.metal ?? "gold").toLowerCase();
+  const spotForRule = (p: RuleParams): number | null =>
+    effMetal(p) === "gold" ? spotCents : null;
+
   function preview(p: RuleParams): EvaluateResult | null {
-    if (p.fine_weight_oz == null || spotCents == null) return null;
+    const spot = spotForRule(p);
+    if (p.fine_weight_oz == null || spot == null) return null;
     return evaluateRule({
       currentPriceCents: item!.price_cents,
       rule: {
         kind: "spot_plus_pct",
-        metal: (p.metal ?? "gold") as Metal,
+        metal: effMetal(p) as Metal,
         fineWeightOz: p.fine_weight_oz,
         pctOverSpot: p.pct_over_spot ?? 0,
       },
-      context: { spotPerOzCents: spotCents, views, watches, compCents },
+      context: { spotPerOzCents: spot, views, watches, compCents },
       guardrails: {
         floorCents: p.floor_cents ?? null,
         costCents,
@@ -196,10 +207,12 @@ export async function sendChatMessage(
     params = next;
 
     if (next.fine_weight_oz == null) {
-      return "Saved. I still need the coin's fine (pure metal) weight in troy ounces before I can compute a price — ask the dealer for it.";
+      return "Saved. I still need the coin's fine (pure metal) weight in troy ounces before I can compute a price — infer it from the coin if you can, or ask the dealer.";
     }
-    if (spotCents == null) {
-      return "Saved, but there's no live metal price available right now, so I can't preview the number.";
+    if (spotForRule(next) == null) {
+      return effMetal(next) === "gold"
+        ? "Saved, but there's no live gold price available right now, so I can't preview the number."
+        : `Saved. Live spot pricing is currently gold-only, so I can't compute a ${effMetal(next)} spot price yet — set a fixed floor or price for now.`;
     }
     const pv = preview(next);
     if (!pv) return "Saved.";
@@ -243,6 +256,24 @@ export async function sendChatMessage(
     max_daily_move_pct: params.max_daily_move_pct ?? null,
   });
 
+  const specLines = [
+    item.year != null && `Year: ${item.year}`,
+    item.series && `Series: ${item.series}`,
+    item.mintmark && `Mint mark: ${item.mintmark}`,
+    item.variety && `Variety: ${item.variety}`,
+    item.metal && `Metal: ${item.metal}`,
+    item.fine_weight_oz != null && `Fine weight: ${item.fine_weight_oz} oz`,
+    item.grade != null &&
+      `Grade: ${item.grade}${item.designation ? ` ${item.designation}` : ""}`,
+    item.grading_service && `Grading service: ${item.grading_service}`,
+    item.cert_number && `Cert #: ${item.cert_number}`,
+    item.description && `Description: ${item.description}`,
+  ].filter(Boolean) as string[];
+  const specsBlock =
+    specLines.length > 0
+      ? specLines.join("\n")
+      : "(no structured specs entered — rely on the title)";
+
   const system = `You are the pricing agent for ONE coin in a dealer's inventory on Bydd, a rare-coin marketplace. You talk with the DEALER (a professional numismatist) to set up and adjust this coin's automatic pricing.
 
 How pricing works: a deterministic engine computes the price — you do NOT set the price directly. You configure the engine's settings with the set_pricing_rule tool and the engine does the math. Settings:
@@ -253,16 +284,21 @@ How pricing works: a deterministic engine computes the price — you do NOT set 
 - max_daily_move_pct -> cap how far the price can move per update
 Only include the fields the dealer wants to change; the rest keep their current value.
 
+Coin specifications (from the listing):
+${specsBlock}
+
 Current state of this coin:
 - Title: ${item.title || "Untitled coin"}
 - Listed price: ${fmtMoney(item.price_cents)}
-- Live gold spot: ${spotCents != null ? `${fmtMoney(spotCents)}/oz` : "unknown"}
+- Live spot available: gold ${spotCents != null ? `at ${fmtMoney(spotCents)}/oz` : "(unknown)"} — GOLD ONLY for now.
 - Views: ${views}; watchers: ${watches}; recent comparable sale: ${compCents != null ? fmtMoney(compCents) : "none on record"}
 - Current rule settings: ${ruleSummary}
 
 Guidelines:
 - Keep replies short, concrete, and in plain dealer language. No code, no JSON.
-- Use the dealer's own numbers. Never invent a weight, cost, or metal. If you need the fine (pure metal) weight or the metal to compute a price and it isn't known, ask for it.
+- Treat the specifications above and the title as the coin's known details — do NOT ask the dealer to restate its identity, grade, service, metal, or weight when it's already here.
+- You know numismatics: if the fine (pure metal) weight isn't listed, infer the standard content from the coin's identity (e.g. a Morgan Dollar is 0.7734 oz silver; a $20 Saint-Gaudens is 0.9675 oz gold) and state the figure you're using so the dealer can correct it. Only ask when you genuinely can't tell.
+- Live spot is GOLD ONLY right now: use spot-linked pricing for gold coins; for other metals set a fixed floor/price and note that live spot for that metal is coming.
 - After you change settings, state the resulting suggested price (the tool result gives it to you) and that they can hit "Reprice now" or wait for the daily update.
 - You only configure the engine; never claim you'll move the price yourself outside it.
 
