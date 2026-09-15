@@ -1,4 +1,27 @@
+import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Effective gold spot in cents/oz: a per-browser dev test override (the
+ * `test_gold_cents` cookie) wins over the latest DB spot. Shared by the pricing
+ * preview, the reprice action, and the pricing chat so they all agree.
+ */
+export async function effectiveGoldCents(
+  supabase: SupabaseClient,
+): Promise<number | null> {
+  const cookieStore = await cookies();
+  const raw = cookieStore.get("test_gold_cents")?.value;
+  const o = raw ? Number(raw) : NaN;
+  if (!Number.isNaN(o) && o > 0) return Math.round(o);
+  const { data } = await supabase
+    .from("spot_prices")
+    .select("price_cents_per_oz")
+    .eq("metal", "gold")
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.price_cents_per_oz ?? null;
+}
 
 /**
  * Live demand signals for an item, gathered for both the price preview and the

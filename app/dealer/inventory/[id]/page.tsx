@@ -9,6 +9,8 @@ import { setItemListed, deleteItem } from "@/app/dealer/inventory/actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PricingPanel } from "@/components/pricing-panel";
+import { ItemChat } from "@/components/item-chat";
+import { aiConfigured } from "@/lib/anthropic";
 
 const STATUS_STYLES: Record<string, string> = {
   listed: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
@@ -89,6 +91,17 @@ export default async function ItemDetailPage({
     .eq("inventory_item_id", id)
     .order("created_at", { ascending: false })
     .limit(20);
+
+  const { data: chatRows } = await supabase
+    .from("agent_chat_messages")
+    .select("role, content")
+    .eq("inventory_item_id", id)
+    .order("created_at", { ascending: true })
+    .limit(50);
+  const chatHistory = (chatRows ?? []).map((r) => ({
+    role: r.role as "user" | "assistant",
+    content: r.content as string,
+  }));
 
   const listed = item.status === "listed";
   const photos: string[] = item.photos ?? [];
@@ -198,7 +211,8 @@ export default async function ItemDetailPage({
         </div>
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 space-y-4">
+        <ItemChat itemId={id} initial={chatHistory} configured={aiConfigured()} />
         <PricingPanel
           item={{ ...item, cost_cents: costCents }}
           rule={rule}
