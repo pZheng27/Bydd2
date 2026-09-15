@@ -54,6 +54,13 @@ export default async function ItemDetailPage({
     .maybeSingle();
   const spotCents = spot?.price_cents_per_oz ?? null;
 
+  const { data: events } = await supabase
+    .from("agent_events")
+    .select("id, kind, summary, created_at")
+    .eq("inventory_item_id", id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
   const listed = item.status === "listed";
   const photos: string[] = item.photos ?? [];
 
@@ -158,8 +165,27 @@ export default async function ItemDetailPage({
         <PricingPanel item={item} rule={rule} spotCents={spotCents} />
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <Panel title="Activity" note="Repricing history arrives in Part B." />
+      <div className="mt-4 rounded-xl border p-4">
+        <div className="text-sm font-medium">Activity</div>
+        {events && events.length > 0 ? (
+          <ul className="mt-2 space-y-2">
+            {events.map((e) => (
+              <li key={e.id} className="text-sm">
+                <span className="text-muted-foreground">
+                  {new Date(e.created_at).toLocaleString()} ·{" "}
+                </span>
+                {e.summary}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">
+            No activity yet. Set a rule and click Reprice now.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Panel title="Comps" note="Guide values and past sales arrive with the catalog (S5)." />
         <Panel title="Demand" note="Open wants vs. supply arrives once collectors join." />
       </div>

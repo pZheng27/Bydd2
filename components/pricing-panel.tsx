@@ -5,6 +5,7 @@ import {
   savePricingRule,
   removePricingRule,
   tickSpot,
+  repriceItem,
 } from "@/app/dealer/inventory/pricing-actions";
 import { Button } from "@/components/ui/button";
 
@@ -92,9 +93,18 @@ export function PricingPanel({
               bounded by {bounds.join(", ")}
             </div>
           )}
-          <div className="mt-1 text-xs text-muted-foreground">
-            Preview — automatic repricing + history arrive in Part B.
-          </div>
+          {preview.changed ? (
+            <form action={repriceItem} className="mt-2">
+              <input type="hidden" name="item_id" value={item.id} />
+              <Button type="submit" size="sm">
+                Reprice now
+              </Button>
+            </form>
+          ) : (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Already at the suggested price.
+            </div>
+          )}
         </div>
       )}
 
