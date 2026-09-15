@@ -83,4 +83,38 @@ describe("evaluateRule (spot_plus_pct)", () => {
     expect(r.priceCents).toBe(285000);
     expect(r.applied.dailyMove).toBe(true);
   });
+
+  it("bumps the price when interest is high (watches over threshold)", () => {
+    const r = evaluateRule({
+      currentPriceCents: 250000,
+      rule: goldRule,
+      context: { spotPerOzCents: 264100, watches: 5 },
+      signals: { demandBumpPct: 5, watchesThreshold: 3 },
+    });
+    // base 265,737 × 1.05 = 279,024
+    expect(r.priceCents).toBe(279024);
+    expect(r.applied.demand).toBe(true);
+  });
+
+  it("does not bump when interest is below threshold", () => {
+    const r = evaluateRule({
+      currentPriceCents: 250000,
+      rule: goldRule,
+      context: { spotPerOzCents: 264100, watches: 1 },
+      signals: { demandBumpPct: 5, watchesThreshold: 3 },
+    });
+    expect(r.priceCents).toBe(265737);
+    expect(r.applied.demand).toBe(false);
+  });
+
+  it("won't price below a comp when comps are enabled", () => {
+    const r = evaluateRule({
+      currentPriceCents: 250000,
+      rule: goldRule,
+      context: { spotPerOzCents: 264100, compCents: 300000 },
+      signals: { useComp: true },
+    });
+    expect(r.priceCents).toBe(300000);
+    expect(r.applied.comp).toBe(true);
+  });
 });
