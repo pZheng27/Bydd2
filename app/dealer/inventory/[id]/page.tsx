@@ -94,7 +94,7 @@ export default async function ItemDetailPage({
   const photos: string[] = item.photos ?? [];
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/dealer/inventory" className="hover:underline">
           Inventory
@@ -103,92 +103,99 @@ export default async function ItemDetailPage({
         <span className="truncate">{item.title || "Untitled coin"}</span>
       </div>
 
-      <div className="mt-2 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {item.title || "Untitled coin"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {gradeLabel(item)}
-            {item.cert_number ? ` · Cert ${item.cert_number}` : ""}
-            {` · ${item.view_count ?? 0} view${item.view_count === 1 ? "" : "s"}`}
-            {` · ${watches} watching`}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-            STATUS_STYLES[item.status] ?? "bg-muted text-muted-foreground",
+      <div className="mt-3 grid gap-6 sm:grid-cols-2">
+        <div className="space-y-3">
+          {photos[0] ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={publicPhotoUrl(photos[0])}
+              alt=""
+              className="aspect-square w-full rounded-xl border object-cover"
+            />
+          ) : (
+            <div className="aspect-square w-full rounded-xl border bg-muted" />
           )}
-        >
-          {item.status}
-        </span>
-      </div>
-
-      {photos.length > 0 ? (
-        <div className="mt-4 space-y-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={publicPhotoUrl(photos[0])}
-            alt=""
-            className="mx-auto aspect-square w-full max-w-md rounded-xl border object-cover"
-          />
           {photos.length > 1 && (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-4 gap-2">
               {photos.slice(1).map((p) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={p}
                   src={publicPhotoUrl(p)}
                   alt=""
-                  className="aspect-square w-full rounded-lg border object-cover"
+                  className="aspect-square w-full rounded-md border object-cover"
                 />
               ))}
             </div>
           )}
         </div>
-      ) : (
-        <div className="mt-4 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No photos.
-        </div>
-      )}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border p-4">
-          <div className="text-sm text-muted-foreground">Price</div>
-          <div className="text-xl font-semibold">{fmtMoney(item.price_cents)}</div>
-          <div className="mt-2 text-sm text-muted-foreground">
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl font-semibold">
+              {item.title || "Untitled coin"}
+            </h1>
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                STATUS_STYLES[item.status] ?? "bg-muted text-muted-foreground",
+              )}
+            >
+              {item.status}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {gradeLabel(item)}
+            {item.cert_number ? ` · Cert ${item.cert_number}` : ""}
+          </p>
+
+          <div className="mt-4 text-2xl font-semibold">
+            {fmtMoney(item.price_cents)}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
             Your cost: {fmtMoney(costCents)}
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              {item.view_count ?? 0} view{item.view_count === 1 ? "" : "s"}
+            </span>
+            <span>{watches} watching</span>
+          </div>
+
+          <div className="mt-4 text-sm">
+            {item.description ? (
+              <p className="whitespace-pre-line">{item.description}</p>
+            ) : (
+              <p className="text-muted-foreground">No description.</p>
+            )}
+            {item.shipping_note && (
+              <p className="mt-2 text-muted-foreground">
+                Shipping: {item.shipping_note}
+              </p>
+            )}
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <form action={setItemListed}>
+              <input type="hidden" name="id" value={item.id} />
+              <input
+                type="hidden"
+                name="listed"
+                value={listed ? "false" : "true"}
+              />
+              <Button type="submit" variant={listed ? "outline" : "default"}>
+                {listed ? "Unlist from marketplace" : "List on marketplace"}
+              </Button>
+            </form>
+            <form action={deleteItem}>
+              <input type="hidden" name="id" value={item.id} />
+              <button className="rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted">
+                Delete item
+              </button>
+            </form>
           </div>
         </div>
-        <div className="rounded-xl border p-4 text-sm">
-          {item.description ? (
-            <p>{item.description}</p>
-          ) : (
-            <p className="text-muted-foreground">No description.</p>
-          )}
-          {item.shipping_note && (
-            <p className="mt-2 text-muted-foreground">
-              Shipping: {item.shipping_note}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3 border-t pt-4">
-        <form action={setItemListed}>
-          <input type="hidden" name="id" value={item.id} />
-          <input type="hidden" name="listed" value={listed ? "false" : "true"} />
-          <Button type="submit" variant={listed ? "outline" : "default"}>
-            {listed ? "Unlist from marketplace" : "List on marketplace"}
-          </Button>
-        </form>
-        <form action={deleteItem}>
-          <input type="hidden" name="id" value={item.id} />
-          <button className="rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted">
-            Delete item
-          </button>
-        </form>
       </div>
 
       <div className="mt-8">
