@@ -4,6 +4,7 @@ import { addInventoryItem } from "@/app/dealer/inventory/actions";
 import { GRADING_SERVICES } from "@/lib/coins";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { Button } from "@/components/ui/button";
+import { aiConfigured } from "@/lib/anthropic";
 
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -129,6 +130,22 @@ export default async function AddInventoryItemPage() {
         >
           <input id="shipping_note" name="shipping_note" className={inputCls} />
         </Field>
+
+        {aiConfigured() && (
+          <Field
+            label="Pricing instructions (optional)"
+            name="pricing_instructions"
+            hint="The pricing assistant will set this up for you now. You can keep chatting to adjust it later."
+          >
+            <textarea
+              id="pricing_instructions"
+              name="pricing_instructions"
+              rows={2}
+              placeholder="e.g. 1 oz gold, 4% over spot, never below $2,600, nudge up when it gets popular"
+              className={inputCls}
+            />
+          </Field>
+        )}
 
         <div className="flex items-center justify-end gap-3 border-t pt-4">
           <Link

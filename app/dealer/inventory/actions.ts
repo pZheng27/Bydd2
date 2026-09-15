@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sendChatMessage } from "@/app/dealer/inventory/chat-actions";
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = (v as string | null)?.trim();
@@ -59,6 +60,7 @@ export async function addInventoryItem(formData: FormData) {
   const priceCents = toCents(formData.get("price")) ?? 0;
   const description = str(formData.get("description"));
   const shippingNote = str(formData.get("shipping_note"));
+  const pricingInstructions = str(formData.get("pricing_instructions"));
   const photos = formData.getAll("photos").map(String).filter(Boolean);
 
   const { data: created } = await supabase
@@ -84,6 +86,13 @@ export async function addInventoryItem(formData: FormData) {
     await supabase
       .from("inventory_costs")
       .insert({ inventory_item_id: created.id, cost_cents: costCents });
+  }
+
+  // If the dealer gave pricing instructions, let the assistant set up the rule
+  // now (best-effort) and drop them on the item page to see the result.
+  if (created && pricingInstructions) {
+    await sendChatMessage(created.id, pricingInstructions);
+    redirect(`/dealer/inventory/${created.id}`);
   }
 
   redirect("/dealer/inventory");
