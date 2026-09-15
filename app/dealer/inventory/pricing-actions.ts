@@ -1,9 +1,13 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateRule, type EvaluateResult, type Metal } from "@/lib/domain/pricing";
 import { fmtMoney } from "@/lib/format";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+const TEST_GOLD_COOKIE = "test_gold_cents";
 
 type RuleParams = {
   metal?: string;
@@ -13,28 +17,29 @@ type RuleParams = {
   max_daily_move_pct?: number | null;
 };
 
-function repriceSummary(
-  oldCents: number,
-  result: EvaluateResult,
-  params: RuleParams,
-  spotCents: number | null,
-): string {
-  const bounds = [
-    result.applied.floor && "floor",
-    result.applied.cost && "cost",
-    result.applied.dailyMove && "max move",
-  ].filter(Boolean);
-  const spotStr = spotCents != null ? `${fmtMoney(spotCents)}/oz` : "spot";
-  let s = `Repriced ${fmtMoney(oldCents)} → ${fmtMoney(result.priceCents)}: gold ${spotStr} × ${params.fine_weight_oz} oz + ${params.pct_over_spot ?? 0}%`;
-  if (bounds.length) s += ` (held by ${bounds.join(", ")})`;
-  return s;
-}
-
 function num(v: FormDataEntryValue | null): number | null {
   const s = (v as string | null)?.trim();
   if (!s) return null;
   const n = Number(s);
   return Number.isNaN(n) ? null : n;
+}
+
+/** Effective gold spot: a per-browser test override (cookie) wins over the DB. */
+async function effectiveGoldCents(
+  supabase: SupabaseClient,
+): Promise<number | null> {
+  const cookieStore = await cookies();
+  const raw = cookieStore.get(TEST_GOLD_COOKIE)?.value;
+  const o = raw ? Number(raw) : NaN;
+  if (!Number.isNaN(o) && o > 0) return Math.round(o);
+  const { data } = await supabase
+    .from("spot_prices")
+    .select("price_cents_per_oz")
+    .eq("metal", "gold")
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.price_cents_per_oz ?? null;
 }
 
 /** Create/replace the item's spot pricing rule (one active rule per item for now). */
@@ -74,25 +79,42 @@ export async function removePricingRule(formData: FormData) {
   redirect(`/dealer/inventory/${itemId}`);
 }
 
-/** Advance the seeded gold price by a ±1% tick (demo of a spot move). */
-export async function tickSpot(formData: FormData) {
+/** Test-only (local dev): force the gold price via a per-browser cookie. */
+export async function setTestGold(formData: FormData) {
   const itemId = String(formData.get("item_id") ?? "");
-  const supabase = await createClient();
-  await supabase.rpc("seed_spot");
-  redirect(itemId ? `/dealer/inventory/${itemId}` : "/dealer/inventory");
-}
-
-/** Test input: set the gold price to a specific dollars-per-oz value. */
-export async function setSpot(formData: FormData) {
-  const itemId = String(formData.get("item_id") ?? "");
-  const dollars = Number(formData.get("gold_price"));
-  const supabase = await createClient();
-  if (!Number.isNaN(dollars) && dollars > 0) {
-    await supabase.rpc("set_spot", {
-      p_price_cents_per_oz: Math.round(dollars * 100),
+  const dollars = num(formData.get("gold_price"));
+  const cookieStore = await cookies();
+  if (dollars != null && dollars > 0) {
+    cookieStore.set(TEST_GOLD_COOKIE, String(Math.round(dollars * 100)), {
+      path: "/",
     });
   }
   redirect(itemId ? `/dealer/inventory/${itemId}` : "/dealer/inventory");
+}
+
+/** Clear the test gold override (revert to the real spot price). */
+export async function clearTestGold(formData: FormData) {
+  const itemId = String(formData.get("item_id") ?? "");
+  const cookieStore = await cookies();
+  cookieStore.delete(TEST_GOLD_COOKIE);
+  redirect(itemId ? `/dealer/inventory/${itemId}` : "/dealer/inventory");
+}
+
+function repriceSummary(
+  oldCents: number,
+  result: EvaluateResult,
+  params: RuleParams,
+  spotCents: number | null,
+): string {
+  const bounds = [
+    result.applied.floor && "floor",
+    result.applied.cost && "cost",
+    result.applied.dailyMove && "max move",
+  ].filter(Boolean);
+  const spotStr = spotCents != null ? `${fmtMoney(spotCents)}/oz` : "spot";
+  let s = `Repriced ${fmtMoney(oldCents)} → ${fmtMoney(result.priceCents)}: gold ${spotStr} × ${params.fine_weight_oz} oz + ${params.pct_over_spot ?? 0}%`;
+  if (bounds.length) s += ` (held by ${bounds.join(", ")})`;
+  return s;
 }
 
 /** Recompute the item's price from its rule and apply it, logging the change. */
@@ -120,14 +142,7 @@ export async function repriceItem(formData: FormData) {
     redirect(`/dealer/inventory/${itemId}`);
   }
 
-  const { data: spot } = await supabase
-    .from("spot_prices")
-    .select("price_cents_per_oz")
-    .eq("metal", params.metal ?? "gold")
-    .order("fetched_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const spotCents = spot?.price_cents_per_oz ?? null;
+  const spotCents = await effectiveGoldCents(supabase);
 
   const result = evaluateRule({
     currentPriceCents: item.price_cents,

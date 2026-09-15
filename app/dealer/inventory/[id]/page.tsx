@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
@@ -52,7 +53,14 @@ export default async function ItemDetailPage({
     .order("fetched_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const spotCents = spot?.price_cents_per_oz ?? null;
+  const cookieStore = await cookies();
+  const overrideRaw = cookieStore.get("test_gold_cents")?.value;
+  const overrideCents = overrideRaw ? Number(overrideRaw) : NaN;
+  const testGoldActive = !Number.isNaN(overrideCents) && overrideCents > 0;
+  const spotCents = testGoldActive
+    ? Math.round(overrideCents)
+    : spot?.price_cents_per_oz ?? null;
+  const showTestControls = process.env.NODE_ENV !== "production";
 
   const { data: events } = await supabase
     .from("agent_events")
@@ -162,7 +170,13 @@ export default async function ItemDetailPage({
       </div>
 
       <div className="mt-8">
-        <PricingPanel item={item} rule={rule} spotCents={spotCents} />
+        <PricingPanel
+          item={item}
+          rule={rule}
+          spotCents={spotCents}
+          testGoldActive={testGoldActive}
+          showTestControls={showTestControls}
+        />
       </div>
 
       <div className="mt-4 rounded-xl border p-4">
