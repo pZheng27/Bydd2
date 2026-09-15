@@ -1,17 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Paths reachable without being signed in.
-const PUBLIC_PATHS = ["/login", "/auth"];
+// Paths reachable without being signed in: the public marketplace (the home
+// page and individual listings) plus the auth screens. Everything else — buying,
+// offers, watchlist, messages, and the collector/dealer areas — needs sign-in.
+const PUBLIC_PATHS = ["/", "/market", "/login", "/auth"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
 /**
- * Refreshes the Supabase auth session on every request and enforces sign-in:
- * signed-out visitors are redirected to /login, and signed-in visitors are
- * kept off /login.
+ * Refreshes the Supabase auth session on every request and guards routes:
+ * signed-out visitors may browse the public marketplace (PUBLIC_PATHS) but are
+ * redirected to /login for anything else; signed-in visitors are kept off /login.
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

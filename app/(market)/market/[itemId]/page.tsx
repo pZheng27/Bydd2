@@ -20,11 +20,18 @@ export default async function MarketItemPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("user_id", user!.id)
-    .single();
+
+  // Signed-out visitors can view a listing; a buyer profile only exists if
+  // they're signed in.
+  let profileId: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+    profileId = profile?.id ?? null;
+  }
 
   const { data: item } = await supabase
     .from("inventory_items")
@@ -34,18 +41,21 @@ export default async function MarketItemPage({
 
   if (!item || !item.is_public || item.status !== "listed") notFound();
 
-  const isMine = item.dealers?.profile_id === profile?.id;
-  // Count a view — but don't count the seller viewing their own listing.
-  if (!isMine) {
+  const isMine = !!profileId && item.dealers?.profile_id === profileId;
+  // Count a view — signed-in non-owners only (don't count the seller's own).
+  if (user && !isMine) {
     await supabase.rpc("increment_item_view", { p_item_id: itemId });
   }
-  const { data: saved } = await supabase
-    .from("saved_items")
-    .select("id")
-    .eq("profile_id", profile!.id)
-    .eq("inventory_item_id", itemId)
-    .maybeSingle();
-  const isSaved = !!saved;
+  let isSaved = false;
+  if (profileId && !isMine) {
+    const { data: saved } = await supabase
+      .from("saved_items")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("inventory_item_id", itemId)
+      .maybeSingle();
+    isSaved = !!saved;
+  }
   const photos: string[] = item.photos ?? [];
 
   return (
@@ -108,6 +118,16 @@ export default async function MarketItemPage({
               <div className="mt-1 text-muted-foreground">
                 {item.view_count} view{item.view_count === 1 ? "" : "s"}.
               </div>
+            </div>
+          ) : !user ? (
+            <div className="mt-6 rounded-lg border p-4">
+              <p className="text-sm font-medium">Interested in this coin?</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sign in to buy it, add it to your watchlist, or make an offer.
+              </p>
+              <Link href="/login" className="mt-3 inline-block">
+                <Button>Sign in</Button>
+              </Link>
             </div>
           ) : (
             <div className="mt-6 space-y-4">

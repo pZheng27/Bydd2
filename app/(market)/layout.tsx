@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 
@@ -12,17 +11,21 @@ export default async function MarketLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("email")
-    .eq("user_id", user.id)
-    .single();
+  // Signed-out visitors can still browse the marketplace; the header adapts.
+  let email: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("user_id", user.id)
+      .single();
+    email = profile?.email ?? user.email ?? null;
+  }
 
   return (
     <div className="min-h-screen">
-      <AppHeader email={profile?.email ?? user.email ?? ""} />
+      <AppHeader email={email} />
       <main className="p-6">{children}</main>
     </div>
   );
