@@ -6,6 +6,7 @@ import {
   removePricingRule,
   tickSpot,
   repriceItem,
+  setSpot,
 } from "@/app/dealer/inventory/pricing-actions";
 import { Button } from "@/components/ui/button";
 
@@ -68,14 +69,26 @@ export function PricingPanel({
     <div className="rounded-xl border p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-medium">Pricing rule</div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>
             Gold: {spotCents != null ? `${fmtMoney(spotCents)}/oz` : "—"}
           </span>
+          <form action={setSpot} className="flex items-center gap-1">
+            <input type="hidden" name="item_id" value={item.id} />
+            <span>Set $</span>
+            <input
+              name="gold_price"
+              type="number"
+              step="0.01"
+              defaultValue={spotCents != null ? (spotCents / 100).toFixed(2) : ""}
+              className="w-24 rounded-md border bg-background px-2 py-1"
+            />
+            <button className="rounded-md border px-2 py-1 hover:bg-muted">Set</button>
+          </form>
           <form action={tickSpot}>
             <input type="hidden" name="item_id" value={item.id} />
             <button className="rounded-md border px-2 py-1 hover:bg-muted">
-              Simulate gold tick
+              Random tick
             </button>
           </form>
         </div>

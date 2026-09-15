@@ -82,6 +82,19 @@ export async function tickSpot(formData: FormData) {
   redirect(itemId ? `/dealer/inventory/${itemId}` : "/dealer/inventory");
 }
 
+/** Test input: set the gold price to a specific dollars-per-oz value. */
+export async function setSpot(formData: FormData) {
+  const itemId = String(formData.get("item_id") ?? "");
+  const dollars = Number(formData.get("gold_price"));
+  const supabase = await createClient();
+  if (!Number.isNaN(dollars) && dollars > 0) {
+    await supabase.rpc("set_spot", {
+      p_price_cents_per_oz: Math.round(dollars * 100),
+    });
+  }
+  redirect(itemId ? `/dealer/inventory/${itemId}` : "/dealer/inventory");
+}
+
 /** Recompute the item's price from its rule and apply it, logging the change. */
 export async function repriceItem(formData: FormData) {
   const itemId = String(formData.get("item_id") ?? "");
