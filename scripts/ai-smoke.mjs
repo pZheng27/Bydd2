@@ -12,7 +12,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 const client = new Anthropic();
 try {
   const r = await client.messages.countTokens({
-    model: "claude-opus-5",
+    model: "claude-sonnet-5",
     system: "You are the pricing agent for a coin.",
     messages: [{ role: "user", content: "price it 5% over spot, floor $2,600" }],
     tools: [

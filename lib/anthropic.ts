@@ -16,4 +16,6 @@ export function aiConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-export const PRICING_MODEL = "claude-opus-5";
+// Sonnet 5 is the cost/quality sweet spot for the pricing chat (~2.5x cheaper
+// than Opus 5). Bump back to "claude-opus-5" if rule-setting accuracy needs it.
+export const PRICING_MODEL = "claude-sonnet-5";
