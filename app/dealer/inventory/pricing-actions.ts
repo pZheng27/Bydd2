@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { evaluateRule, type EvaluateResult, type Metal } from "@/lib/domain/pricing";
+import { itemSignals } from "@/lib/pricing-context";
 import { fmtMoney } from "@/lib/format";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -15,6 +16,11 @@ type RuleParams = {
   pct_over_spot?: number | null;
   floor_cents?: number | null;
   max_daily_move_pct?: number | null;
+  // Optional demand signals (Session 3 Part C).
+  demand_bump_pct?: number | null;
+  views_threshold?: number | null;
+  watches_threshold?: number | null;
+  use_comp?: boolean;
 };
 
 function num(v: FormDataEntryValue | null): number | null {
@@ -54,6 +60,12 @@ export async function savePricingRule(formData: FormData) {
   const floorDollars = num(formData.get("floor"));
   const floorCents = floorDollars == null ? null : Math.round(floorDollars * 100);
 
+  // Optional demand signals. Blank fields stay off (null / false).
+  const demandBumpPct = num(formData.get("demand_bump_pct"));
+  const viewsThreshold = num(formData.get("views_threshold"));
+  const watchesThreshold = num(formData.get("watches_threshold"));
+  const useComp = formData.get("use_comp") === "on";
+
   await supabase.from("pricing_rules").delete().eq("inventory_item_id", itemId);
   await supabase.from("pricing_rules").insert({
     inventory_item_id: itemId,
@@ -63,6 +75,10 @@ export async function savePricingRule(formData: FormData) {
       fine_weight_oz: fineWeightOz,
       pct_over_spot: pctOverSpot,
       floor_cents: floorCents,
+      demand_bump_pct: demandBumpPct,
+      views_threshold: viewsThreshold,
+      watches_threshold: watchesThreshold,
+      use_comp: useComp,
     },
     is_active: true,
   });
@@ -106,14 +122,16 @@ function repriceSummary(
   params: RuleParams,
   spotCents: number | null,
 ): string {
-  const bounds = [
+  const held = [
     result.applied.floor && "floor",
     result.applied.cost && "cost",
+    result.applied.comp && "comp",
     result.applied.dailyMove && "max move",
   ].filter(Boolean);
   const spotStr = spotCents != null ? `${fmtMoney(spotCents)}/oz` : "spot";
   let s = `Repriced ${fmtMoney(oldCents)} → ${fmtMoney(result.priceCents)}: gold ${spotStr} × ${params.fine_weight_oz} oz + ${params.pct_over_spot ?? 0}%`;
-  if (bounds.length) s += ` (held by ${bounds.join(", ")})`;
+  if (result.applied.demand) s += ` + demand ${params.demand_bump_pct}%`;
+  if (held.length) s += ` (held by ${held.join(", ")})`;
   return s;
 }
 
@@ -125,7 +143,7 @@ export async function repriceItem(formData: FormData) {
 
   const { data: item } = await supabase
     .from("inventory_items")
-    .select("price_cents, cost_cents")
+    .select("price_cents, cost_cents, title, view_count, dealer_id")
     .eq("id", itemId)
     .single();
   if (!item) redirect(`/dealer/inventory/${itemId}`);
@@ -144,6 +162,18 @@ export async function repriceItem(formData: FormData) {
 
   const spotCents = await effectiveGoldCents(supabase);
 
+  // Live demand signals — watches (RLS-safe count) and the seller's own comps.
+  const { data: dealer } = await supabase
+    .from("dealers")
+    .select("profile_id")
+    .eq("id", item.dealer_id)
+    .maybeSingle();
+  const { watches, compCents } = await itemSignals(supabase, {
+    itemId,
+    itemTitle: item.title,
+    sellerProfileId: dealer?.profile_id ?? null,
+  });
+
   const result = evaluateRule({
     currentPriceCents: item.price_cents,
     rule: {
@@ -152,11 +182,22 @@ export async function repriceItem(formData: FormData) {
       fineWeightOz: params.fine_weight_oz,
       pctOverSpot: params.pct_over_spot ?? 0,
     },
-    context: { spotPerOzCents: spotCents },
+    context: {
+      spotPerOzCents: spotCents,
+      views: item.view_count ?? 0,
+      watches,
+      compCents,
+    },
     guardrails: {
       floorCents: params.floor_cents ?? null,
       costCents: item.cost_cents ?? null,
       maxDailyMovePct: params.max_daily_move_pct ?? null,
+    },
+    signals: {
+      demandBumpPct: params.demand_bump_pct ?? null,
+      viewsThreshold: params.views_threshold ?? null,
+      watchesThreshold: params.watches_threshold ?? null,
+      useComp: params.use_comp ?? false,
     },
   });
 
@@ -169,6 +210,9 @@ export async function repriceItem(formData: FormData) {
         old_price_cents: item.price_cents,
         new_price_cents: result.priceCents,
         spot_cents_per_oz: spotCents,
+        views: item.view_count ?? 0,
+        watches,
+        comp_cents: compCents,
         applied: result.applied,
       },
     });

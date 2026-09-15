@@ -24,18 +24,28 @@ type RuleParams = {
   pct_over_spot?: number | null;
   floor_cents?: number | null;
   max_daily_move_pct?: number | null;
+  demand_bump_pct?: number | null;
+  views_threshold?: number | null;
+  watches_threshold?: number | null;
+  use_comp?: boolean;
 };
 
 export function PricingPanel({
   item,
   rule,
   spotCents,
+  views = 0,
+  watches = 0,
+  compCents = null,
   testGoldActive = false,
   showTestControls = false,
 }: {
   item: PanelItem;
   rule: { params: RuleParams } | null;
   spotCents: number | null;
+  views?: number;
+  watches?: number;
+  compCents?: number | null;
   testGoldActive?: boolean;
   showTestControls?: boolean;
 }) {
@@ -52,11 +62,22 @@ export function PricingPanel({
             fineWeightOz: p.fine_weight_oz,
             pctOverSpot: p.pct_over_spot ?? 0,
           },
-          context: { spotPerOzCents: spotCents },
+          context: {
+            spotPerOzCents: spotCents,
+            views,
+            watches,
+            compCents,
+          },
           guardrails: {
             floorCents: p.floor_cents ?? null,
             costCents: item.cost_cents ?? null,
             maxDailyMovePct: p.max_daily_move_pct ?? null,
+          },
+          signals: {
+            demandBumpPct: p.demand_bump_pct ?? null,
+            viewsThreshold: p.views_threshold ?? null,
+            watchesThreshold: p.watches_threshold ?? null,
+            useComp: p.use_comp ?? false,
           },
         })
       : null;
@@ -65,6 +86,7 @@ export function PricingPanel({
     ? [
         preview.applied.floor && "floor",
         preview.applied.cost && "cost",
+        preview.applied.comp && "comp",
         preview.applied.dailyMove && "max move",
       ].filter(Boolean)
     : [];
@@ -120,11 +142,20 @@ export function PricingPanel({
           <span className="text-muted-foreground">
             (current {fmtMoney(item.price_cents)})
           </span>
+          {preview.applied.demand && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              + {p.demand_bump_pct}% demand bump (high interest)
+            </div>
+          )}
           {bounds.length > 0 && (
             <div className="mt-1 text-xs text-muted-foreground">
               bounded by {bounds.join(", ")}
             </div>
           )}
+          <div className="mt-1 text-xs text-muted-foreground">
+            signals: {views} view{views === 1 ? "" : "s"} · {watches} watching
+            {compCents != null ? ` · comp ${fmtMoney(compCents)}` : ""}
+          </div>
           {preview.changed ? (
             <form action={repriceItem} className="mt-2">
               <input type="hidden" name="item_id" value={item.id} />
@@ -184,6 +215,55 @@ export function PricingPanel({
             className={inputCls}
           />
         </div>
+
+        <div className="col-span-2 mt-1 border-t pt-3 text-xs font-medium text-muted-foreground">
+          Demand &amp; comps (optional)
+        </div>
+        <div>
+          <label className="text-xs font-medium">Bump when popular (%)</label>
+          <input
+            name="demand_bump_pct"
+            type="number"
+            step="0.1"
+            defaultValue={p.demand_bump_pct ?? ""}
+            placeholder="e.g. 5"
+            className={inputCls}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs font-medium">Popular at ≥ views</label>
+            <input
+              name="views_threshold"
+              type="number"
+              step="1"
+              defaultValue={p.views_threshold ?? ""}
+              placeholder="e.g. 50"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium">≥ watches</label>
+            <input
+              name="watches_threshold"
+              type="number"
+              step="1"
+              defaultValue={p.watches_threshold ?? ""}
+              placeholder="e.g. 3"
+              className={inputCls}
+            />
+          </div>
+        </div>
+        <label className="col-span-2 flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            name="use_comp"
+            defaultChecked={p.use_comp ?? false}
+            className="h-4 w-4 rounded border"
+          />
+          Don&apos;t price below recent comparable sales (comps)
+        </label>
+
         <div className="col-span-2">
           <Button type="submit" size="sm">
             {hasRule ? "Update rule" : "Set rule"}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { itemSignals } from "@/lib/pricing-context";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
 import { setItemListed, deleteItem } from "@/app/dealer/inventory/actions";
@@ -62,6 +63,18 @@ export default async function ItemDetailPage({
     : spot?.price_cents_per_oz ?? null;
   const showTestControls = process.env.NODE_ENV !== "production";
 
+  // Live demand signals so the preview matches what "Reprice now" will do.
+  const { data: dealer } = await supabase
+    .from("dealers")
+    .select("profile_id")
+    .eq("id", item.dealer_id)
+    .maybeSingle();
+  const { watches, compCents } = await itemSignals(supabase, {
+    itemId: id,
+    itemTitle: item.title,
+    sellerProfileId: dealer?.profile_id ?? null,
+  });
+
   const { data: events } = await supabase
     .from("agent_events")
     .select("id, kind, summary, created_at")
@@ -91,6 +104,7 @@ export default async function ItemDetailPage({
             {gradeLabel(item)}
             {item.cert_number ? ` · Cert ${item.cert_number}` : ""}
             {` · ${item.view_count ?? 0} view${item.view_count === 1 ? "" : "s"}`}
+            {` · ${watches} watching`}
           </p>
         </div>
         <span
@@ -174,6 +188,9 @@ export default async function ItemDetailPage({
           item={item}
           rule={rule}
           spotCents={spotCents}
+          views={item.view_count ?? 0}
+          watches={watches}
+          compCents={compCents}
           testGoldActive={testGoldActive}
           showTestControls={showTestControls}
         />
