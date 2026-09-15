@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
@@ -41,13 +41,17 @@ export default async function MarketItemPage({
 
   if (!item || !item.is_public || item.status !== "listed") notFound();
 
+  // A seller who opens their own listing gets the full management view
+  // (price controls, activity, cost) instead of the buyer-facing page.
   const isMine = !!profileId && item.dealers?.profile_id === profileId;
-  // Count a view — signed-in non-owners only (don't count the seller's own).
-  if (user && !isMine) {
+  if (isMine) redirect(`/dealer/inventory/${itemId}`);
+
+  // Count a view (the owner was already redirected away).
+  if (user) {
     await supabase.rpc("increment_item_view", { p_item_id: itemId });
   }
   let isSaved = false;
-  if (profileId && !isMine) {
+  if (profileId) {
     const { data: saved } = await supabase
       .from("saved_items")
       .select("id")
@@ -105,21 +109,7 @@ export default async function MarketItemPage({
             {item.dealers?.location ? ` · ${item.dealers.location}` : ""}
           </p>
 
-          {isMine ? (
-            <div className="mt-6 rounded-lg border bg-muted/40 p-4 text-sm">
-              This is your listing. Manage it from{" "}
-              <Link
-                href={`/dealer/inventory/${item.id}`}
-                className="font-medium underline"
-              >
-                your inventory
-              </Link>
-              .
-              <div className="mt-1 text-muted-foreground">
-                {item.view_count} view{item.view_count === 1 ? "" : "s"}.
-              </div>
-            </div>
-          ) : !user ? (
+          {!user ? (
             <div className="mt-6 rounded-lg border p-4">
               <p className="text-sm font-medium">Interested in this coin?</p>
               <p className="mt-1 text-sm text-muted-foreground">
