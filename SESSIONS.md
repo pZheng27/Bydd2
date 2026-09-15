@@ -144,7 +144,10 @@ Builds on the Session 3 rule engine. Two related pieces:
 > deterministic engine *executes* and explains each change. Server-side only;
 > needs an Anthropic API key. **This chat replaces the manual pricing-rule
 > editor** — the form built in Part A is interim scaffolding to test the engine;
-> once the chat lands, demote it to a hidden "advanced" fallback or remove it.
+> once the chat lands, demote it to a hidden "advanced" fallback or remove it. The chat is **persistent on the item page** — after
+> publishing, the owner keeps chatting to adjust pricing, guardrails, and alerts
+> anytime (conversation history saved per item, owner-only). Listing-time
+> instructions and this chat share one parser: two entry points, same result.
 >
 > **Notifications.** An `alerts` table + a checker cron + delivery (Resend email
 > and an in-app inbox) — the home for alerts on **offers, sales, messages, and
