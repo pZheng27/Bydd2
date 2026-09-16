@@ -6,6 +6,10 @@ import { itemSignals } from "@/lib/pricing-context";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
 import { setItemListed, deleteItem } from "@/app/dealer/inventory/actions";
+import {
+  setWatchAuctions,
+  checkAuctionsNow,
+} from "@/app/dealer/inventory/watch-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PricingPanel } from "@/components/pricing-panel";
@@ -102,6 +106,13 @@ export default async function ItemDetailPage({
     role: r.role as "user" | "assistant",
     content: r.content as string,
   }));
+
+  const { data: watchHits } = await supabase
+    .from("auction_watch_hits")
+    .select("id, lot_title, price_text, auction_house, sale_date_text, url, found_at")
+    .eq("inventory_item_id", id)
+    .order("found_at", { ascending: false })
+    .limit(10);
 
   const listed = item.status === "listed";
   const photos: string[] = item.photos ?? [];
@@ -224,6 +235,76 @@ export default async function ItemDetailPage({
           testGoldActive={testGoldActive}
           showTestControls={showTestControls}
         />
+      </div>
+
+      <div className="mt-4 rounded-xl border p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium">Auction watch</div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Weekly, we scan Numisbids for comparable coins coming to auction and
+              alert you.
+            </p>
+          </div>
+          <form action={setWatchAuctions}>
+            <input type="hidden" name="item_id" value={item.id} />
+            <input
+              type="hidden"
+              name="on"
+              value={item.watch_auctions ? "false" : "true"}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              variant={item.watch_auctions ? "outline" : "default"}
+            >
+              {item.watch_auctions ? "Watching ✓ — turn off" : "Watch auctions"}
+            </Button>
+          </form>
+        </div>
+        {item.watch_auctions && (
+          <div className="mt-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <form action={checkAuctionsNow}>
+                <input type="hidden" name="item_id" value={item.id} />
+                <button className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+                  Check now
+                </button>
+              </form>
+              <span className="text-xs text-muted-foreground">
+                {item.auctions_checked_at
+                  ? `Last checked ${new Date(item.auctions_checked_at).toLocaleString()}`
+                  : "Not checked yet"}
+              </span>
+            </div>
+            {watchHits && watchHits.length > 0 ? (
+              <ul className="mt-3 divide-y rounded-lg border">
+                {watchHits.map((h) => (
+                  <li key={h.id} className="px-3 py-2 text-sm">
+                    <a
+                      href={h.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium underline"
+                    >
+                      {h.lot_title}
+                    </a>
+                    <div className="text-xs text-muted-foreground">
+                      {[h.price_text, h.auction_house, h.sale_date_text]
+                        .filter(Boolean)
+                        .join(" · ") || "upcoming lot"}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No comparable upcoming lots found yet. Click &ldquo;Check
+                now&rdquo; to scan.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 rounded-xl border p-4">

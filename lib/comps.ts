@@ -19,6 +19,12 @@ export const MAX_COMP_SEARCHES = 3;
  *  price when search alone doesn't return it (works on Numisbids). */
 export const MAX_COMP_FETCHES = 3;
 
+// Automated weekly auction-watch: which sites, cadence, and per-run batch size.
+// Scoped to Numisbids UPCOMING lots (comparable coins coming to auction).
+export const AUCTION_WATCH_DOMAINS = ["numisbids.com"];
+export const AUCTION_WATCH_INTERVAL_DAYS = 7;
+export const AUCTION_WATCH_BATCH = 8;
+
 /** Dealer's rules for HOW to gather and show comps — folded into the prompt. */
 export const COMP_GUIDANCE = [
   "First classify the coin from its title/specs as US or World/Ancient.",
