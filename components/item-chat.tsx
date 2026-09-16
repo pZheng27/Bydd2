@@ -13,6 +13,25 @@ const SUGGESTIONS = [
   "Nudge the price up when it gets popular",
 ];
 
+/** Render assistant text with clickable URLs (e.g. comp links). */
+function linkify(text: string) {
+  return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline break-all"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
 export function ItemChat({
   itemId,
   initial,
@@ -92,7 +111,7 @@ export function ItemChat({
                   : "max-w-[85%] whitespace-pre-line rounded-lg bg-muted px-3 py-2 text-sm"
               }
             >
-              {m.content}
+              {m.role === "assistant" ? linkify(m.content) : m.content}
             </div>
           </div>
         ))}
