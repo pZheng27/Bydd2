@@ -15,6 +15,10 @@ export const COMP_DOMAINS = [
 /** Max web searches the assistant may run per message (cost/latency cap). */
 export const MAX_COMP_SEARCHES = 3;
 
+/** Max lot-page fetches per message — used to read a realized price when the
+ *  search snippet doesn't include it. */
+export const MAX_COMP_FETCHES = 3;
+
 /** Dealer's rules for HOW to gather and show comps — folded into the prompt. */
 export const COMP_GUIDANCE = [
   "First classify the coin from its title/specs as US or World/Ancient.",
@@ -24,6 +28,8 @@ export const COMP_GUIDANCE = [
   "World & ancient coins — search numisbids.com and biddr.com. Every lot there is either SOLD (it shows a realized/hammer price) or UPCOMING (a future auction not yet closed) — decide which for each lot:",
   "  - SOLD lots (with a realized price) ARE the realized comps: use these for pricing. Prefer Numisbids over biddr and never show the same lot from both (de-duplicate).",
   "  - UPCOMING lots are NOT pricing comps — they belong to the weekly auction-watch, so do not present them here as realized comps.",
+  "",
+  "IMPORTANT: web search returns only short snippets, which often omit the realized/hammer price. If a lot's price is not in the snippet, use web_fetch to open that lot's page and read the actual sold price before listing it. If it still isn't shown, say the realized price wasn't listed rather than guessing.",
   "",
   "For each comparable shown: price, grade + grading service, auction name + date, and a link. Show up to 3 realized/sold comps.",
   "A comparable must match: same date + mint mark + variety; grade exact or within +/-5 points; flag when the grading service differs.",

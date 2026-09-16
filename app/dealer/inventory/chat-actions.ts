@@ -6,7 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getAnthropic, PRICING_MODEL } from "@/lib/anthropic";
 import { evaluateRule, type EvaluateResult, type Metal } from "@/lib/domain/pricing";
 import { itemSignals, effectiveGoldCents } from "@/lib/pricing-context";
-import { COMP_DOMAINS, MAX_COMP_SEARCHES, COMP_GUIDANCE } from "@/lib/comps";
+import {
+  COMP_DOMAINS,
+  MAX_COMP_SEARCHES,
+  MAX_COMP_FETCHES,
+  COMP_GUIDANCE,
+} from "@/lib/comps";
 import { fmtMoney } from "@/lib/format";
 
 type RuleParams = {
@@ -320,12 +325,18 @@ Looking up comps: You can search approved sources with the web_search tool, but 
       max_uses: MAX_COMP_SEARCHES,
       allowed_domains: COMP_DOMAINS,
     },
+    {
+      type: "web_fetch_20260209",
+      name: "web_fetch",
+      max_uses: MAX_COMP_FETCHES,
+      allowed_domains: COMP_DOMAINS,
+    },
   ] as Anthropic.MessageCreateParams["tools"];
 
   let ruleChanged = false;
   let finalText = "";
   try {
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const resp = await anthropic.messages.create({
         model: PRICING_MODEL,
         max_tokens: 4096,
