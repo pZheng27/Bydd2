@@ -327,8 +327,7 @@ export default async function ItemDetailPage({
         )}
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Panel title="Comps" note="Guide values and past sales arrive with the catalog (S5)." />
+      <div className="mt-4">
         <Panel title="Demand" note="Open wants vs. supply arrives once collectors join." />
       </div>
     </div>
