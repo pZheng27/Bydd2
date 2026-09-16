@@ -22,7 +22,9 @@ export const MAX_COMP_FETCHES = 3;
 // Automated weekly auction-watch: which sites, cadence, and per-run batch size.
 // Scoped to Numisbids UPCOMING lots (comparable coins coming to auction).
 export const AUCTION_WATCH_DOMAINS = ["numisbids.com"];
-export const AUCTION_WATCH_INTERVAL_DAYS = 7;
+// Each watched coin is re-scanned when its last check is older than this. The
+// cron runs daily (free plan); this gate sets the real per-coin cadence.
+export const AUCTION_WATCH_INTERVAL_DAYS = 4;
 export const AUCTION_WATCH_BATCH = 8;
 
 /** Dealer's rules for HOW to gather and show comps — folded into the prompt. */
