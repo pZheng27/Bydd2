@@ -81,6 +81,24 @@ const RULE_TOOL: Anthropic.Tool = {
   },
 };
 
+// Set a fixed asking price directly (most numismatic coins). Immediate.
+const PRICE_TOOL: Anthropic.Tool = {
+  name: "set_price",
+  description:
+    "Set this coin's fixed asking price directly, in US dollars. Best for numismatic coins priced at a flat number (most coins). Takes effect immediately.",
+  input_schema: {
+    type: "object",
+    properties: {
+      price_usd: {
+        type: "number",
+        description: "the asking price in US dollars",
+      },
+    },
+    required: ["price_usd"],
+    additionalProperties: false,
+  },
+};
+
 function n(v: unknown): number | null {
   if (v == null) return null;
   const x = Number(v);
@@ -233,7 +251,7 @@ export async function sendChatMessage(
     if (pv.applied.demand) bits.push("A demand bump is being applied.");
     if (held.length) bits.push(`Held by ${held.join(", ")}.`);
     bits.push(
-      "Tell the dealer they can click \"Reprice now\" to apply it immediately, or it applies on the next daily update.",
+      "That's the rule's suggested figure. To set the coin's actual asking price, use set_price (or the Price field on the page).",
     );
     return bits.join(" ");
   }
@@ -281,13 +299,9 @@ export async function sendChatMessage(
 
   const system = `You are the pricing agent for ONE coin in a dealer's inventory on Bydd, a rare-coin marketplace. You talk with the DEALER (a professional numismatist) to set up and adjust this coin's automatic pricing.
 
-How pricing works: a deterministic engine computes the price — you do NOT set the price directly. You configure the engine's settings with the set_pricing_rule tool and the engine does the math. Settings:
-- metal + fine_weight_oz + pct_over_spot -> base price = live metal spot x fine weight x (1 + pct/100)
-- floor_usd -> a hard minimum
-- use_comp -> never price below recent comparable sales
-- demand_bump_pct with views_threshold and/or watches_threshold -> raise the price when interest is high
-- max_daily_move_pct -> cap how far the price can move per update
-Only include the fields the dealer wants to change; the rest keep their current value.
+How pricing works. You can set this coin's price two ways:
+1) set_price — set a fixed asking price in US dollars. Best for numismatic coins (most coins). Takes effect immediately.
+2) set_pricing_rule — a spot-linked rule for bullion; a deterministic engine then computes the price from: metal + fine_weight_oz + pct_over_spot (live spot x weight x (1 + pct/100)); floor_usd (hard minimum); use_comp (never below recent comps); demand_bump_pct with views_threshold/watches_threshold; max_daily_move_pct. Only include the fields the dealer wants to change.
 
 Coin specifications (from the listing):
 ${specsBlock}
@@ -303,9 +317,9 @@ Guidelines:
 - Keep replies short, concrete, and in plain dealer language. No code, no JSON.
 - Treat the specifications above and the title as the coin's known details — do NOT ask the dealer to restate its identity, grade, service, metal, or weight when it's already here.
 - You know numismatics: if the fine (pure metal) weight isn't listed, infer the standard content from the coin's identity (e.g. a Morgan Dollar is 0.7734 oz silver; a $20 Saint-Gaudens is 0.9675 oz gold) and state the figure you're using so the dealer can correct it. Only ask when you genuinely can't tell.
-- Live spot is GOLD ONLY right now: use spot-linked pricing for gold coins; for other metals set a fixed floor/price and note that live spot for that metal is coming.
-- After you change settings, state the resulting suggested price (the tool result gives it to you) and that they can hit "Reprice now" or wait for the daily update.
-- You only configure the engine; never claim you'll move the price yourself outside it.
+- For most numismatic coins, set a specific dollar figure with set_price (use comps and your knowledge to choose it). Use set_pricing_rule only for bullion priced off spot.
+- Live spot is GOLD ONLY right now: spot-linked rules work for gold; for other metals, use set_price with a fixed figure.
+- After you set a price or rule, state the price plainly and briefly why.
 
 Looking up comps: You can search approved sources with the web_search tool, but ONLY when the dealer asks about market value, recent sales, or "what are these going for" — not for routine rule edits. ${COMP_GUIDANCE} Findings are ADVISORY: summarize what you found with its source and date, and you may recommend a rule change, but do NOT call set_pricing_rule based only on web comps — ask the dealer to confirm first.`;
 
@@ -319,6 +333,7 @@ Looking up comps: You can search approved sources with the web_search tool, but 
 
   const tools = [
     RULE_TOOL,
+    PRICE_TOOL,
     {
       type: "web_search_20260209",
       name: "web_search",
@@ -364,6 +379,28 @@ Looking up comps: You can search approved sources with the web_search tool, but 
               tool_use_id: tu.id,
               content: summary,
             });
+          } else if (tu.name === "set_price") {
+            const priceUsd = n((tu.input as { price_usd?: unknown }).price_usd);
+            if (priceUsd != null && priceUsd >= 0) {
+              const cents = Math.round(priceUsd * 100);
+              await supabase
+                .from("inventory_items")
+                .update({ price_cents: cents })
+                .eq("id", itemId);
+              ruleChanged = true;
+              results.push({
+                type: "tool_result",
+                tool_use_id: tu.id,
+                content: `Price set to ${fmtMoney(cents)}.`,
+              });
+            } else {
+              results.push({
+                type: "tool_result",
+                tool_use_id: tu.id,
+                content: "That price didn't look valid — ask the dealer to confirm a dollar amount.",
+                is_error: true,
+              });
+            }
           } else {
             results.push({
               type: "tool_result",

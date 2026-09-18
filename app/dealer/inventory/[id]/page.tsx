@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { itemSignals } from "@/lib/pricing-context";
 import { fmtMoney, gradeLabel } from "@/lib/format";
@@ -16,7 +15,6 @@ import {
 } from "@/app/dealer/inventory/watch-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { PricingPanel } from "@/components/pricing-panel";
 import { ItemChat } from "@/components/item-chat";
 import { aiConfigured } from "@/lib/anthropic";
 
@@ -50,36 +48,13 @@ export default async function ItemDetailPage({
     .single();
   if (!item) notFound();
 
-  const { data: rule } = await supabase
-    .from("pricing_rules")
-    .select("params")
-    .eq("inventory_item_id", id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
-  const { data: spot } = await supabase
-    .from("spot_prices")
-    .select("price_cents_per_oz")
-    .eq("metal", "gold")
-    .order("fetched_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const cookieStore = await cookies();
-  const overrideRaw = cookieStore.get("test_gold_cents")?.value;
-  const overrideCents = overrideRaw ? Number(overrideRaw) : NaN;
-  const testGoldActive = !Number.isNaN(overrideCents) && overrideCents > 0;
-  const spotCents = testGoldActive
-    ? Math.round(overrideCents)
-    : spot?.price_cents_per_oz ?? null;
-  const showTestControls = process.env.NODE_ENV !== "production";
-
-  // Live demand signals so the preview matches what "Reprice now" will do.
+  // Live demand signals (watch count shown in the header).
   const { data: dealer } = await supabase
     .from("dealers")
     .select("profile_id")
     .eq("id", item.dealer_id)
     .maybeSingle();
-  const { watches, compCents } = await itemSignals(supabase, {
+  const { watches } = await itemSignals(supabase, {
     itemId: id,
     itemTitle: item.title,
     sellerProfileId: dealer?.profile_id ?? null,
@@ -183,22 +158,6 @@ export default async function ItemDetailPage({
           <p className="mt-1 text-sm text-muted-foreground">
             Your cost: {fmtMoney(costCents)}
           </p>
-          <form action={setItemPrice} className="mt-2 flex items-center gap-2">
-            <input type="hidden" name="id" value={item.id} />
-            <input
-              name="price"
-              type="number"
-              step="0.01"
-              defaultValue={
-                item.price_cents ? (item.price_cents / 100).toFixed(2) : ""
-              }
-              placeholder="Set price (USD)"
-              className="w-36 rounded-md border bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            <button className="rounded-md border px-2 py-1 text-sm hover:bg-muted">
-              Save
-            </button>
-          </form>
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <span>
@@ -221,17 +180,6 @@ export default async function ItemDetailPage({
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <form action={setItemListed}>
-              <input type="hidden" name="id" value={item.id} />
-              <input
-                type="hidden"
-                name="listed"
-                value={listed ? "false" : "true"}
-              />
-              <Button type="submit" variant={listed ? "outline" : "default"}>
-                {listed ? "Unlist from marketplace" : "List on marketplace"}
-              </Button>
-            </form>
             <form action={deleteItem}>
               <input type="hidden" name="id" value={item.id} />
               <button className="rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted">
@@ -243,18 +191,55 @@ export default async function ItemDetailPage({
       </div>
 
       <div className="mt-8 space-y-4">
+        <div className="rounded-xl border p-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <label htmlFor="price" className="text-sm font-medium">
+                Price (USD)
+              </label>
+              <form
+                action={setItemPrice}
+                className="mt-1 flex items-center gap-2"
+              >
+                <input type="hidden" name="id" value={item.id} />
+                <input
+                  id="price"
+                  name="price"
+                  type="number"
+                  step="0.01"
+                  defaultValue={
+                    item.price_cents ? (item.price_cents / 100).toFixed(2) : ""
+                  }
+                  placeholder="e.g. 3500.00"
+                  className="w-40 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">
+                  Save price
+                </button>
+              </form>
+            </div>
+            <form action={setItemListed}>
+              <input type="hidden" name="id" value={item.id} />
+              <input
+                type="hidden"
+                name="listed"
+                value={listed ? "false" : "true"}
+              />
+              <Button type="submit" variant={listed ? "outline" : "default"}>
+                {listed ? "Unlist from marketplace" : "List on marketplace"}
+              </Button>
+            </form>
+          </div>
+          {!listed && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              This coin isn&apos;t live yet — set your price, then click{" "}
+              <span className="font-medium">List on marketplace</span> to make it
+              live.
+            </p>
+          )}
+        </div>
+
         <ItemChat itemId={id} initial={chatHistory} configured={aiConfigured()} />
-        <PricingPanel
-          item={{ ...item, cost_cents: costCents }}
-          rule={rule}
-          spotCents={spotCents}
-          views={item.view_count ?? 0}
-          watches={watches}
-          compCents={compCents}
-          ruleVisible={item.rule_visible ?? false}
-          testGoldActive={testGoldActive}
-          showTestControls={showTestControls}
-        />
       </div>
 
       <div className="mt-4 rounded-xl border p-4">
