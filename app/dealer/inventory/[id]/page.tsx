@@ -232,49 +232,49 @@ export default async function ItemDetailPage({
 
       <div className="mt-8 space-y-4">
         <div className="rounded-xl border p-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <label htmlFor="price" className="text-sm font-medium">
-                Price (USD)
-              </label>
-              <form
-                action={setItemPrice}
-                className="mt-1 flex items-center gap-2"
-              >
-                <input type="hidden" name="id" value={item.id} />
-                <input
-                  id="price"
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  defaultValue={
-                    item.price_cents ? (item.price_cents / 100).toFixed(2) : ""
-                  }
-                  placeholder="e.g. 3500.00"
-                  className="w-40 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                />
-                <button className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">
-                  Save price
-                </button>
-              </form>
-            </div>
-            <form action={setItemListed}>
-              <input type="hidden" name="id" value={item.id} />
-              <input
-                type="hidden"
-                name="listed"
-                value={listed ? "false" : "true"}
-              />
+          <form action={setItemListed}>
+            <input type="hidden" name="id" value={item.id} />
+            <input
+              type="hidden"
+              name="listed"
+              value={listed ? "false" : "true"}
+            />
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <label htmlFor="price" className="text-sm font-medium">
+                  Price (USD)
+                </label>
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    id="price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    defaultValue={
+                      item.price_cents ? (item.price_cents / 100).toFixed(2) : ""
+                    }
+                    placeholder="e.g. 3500.00"
+                    className="w-40 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    type="submit"
+                    formAction={setItemPrice}
+                    className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+                  >
+                    Save price
+                  </button>
+                </div>
+              </div>
               <Button type="submit" variant={listed ? "outline" : "default"}>
                 {listed ? "Unlist from marketplace" : "List on marketplace"}
               </Button>
-            </form>
-          </div>
+            </div>
+          </form>
           {!listed && (
             <p className="mt-2 text-xs text-muted-foreground">
-              This coin isn&apos;t live yet — set your price, then click{" "}
-              <span className="font-medium">List on marketplace</span> to make it
-              live.
+              This coin isn&apos;t live yet — type your price, then click{" "}
+              <span className="font-medium">List on marketplace</span> (it saves
+              the price automatically).
             </p>
           )}
         </div>

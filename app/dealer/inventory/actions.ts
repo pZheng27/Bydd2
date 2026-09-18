@@ -63,6 +63,21 @@ export async function addInventoryItem(formData: FormData) {
   const pricingInstructions = str(formData.get("pricing_instructions"));
   const photos = formData.getAll("photos").map(String).filter(Boolean);
 
+  // Structured fields — carried over as hidden inputs when listing from a
+  // collection item, so nothing is lost. Absent on a normal manual upload.
+  const grade = toNum(formData.get("grade"));
+  const gradeVal =
+    grade != null && grade >= 1 && grade <= 70 ? Math.round(grade) : null;
+  const year = toNum(formData.get("year"));
+  const designation = str(formData.get("designation"));
+  const metal = str(formData.get("metal"));
+  const fineWeightOz = toNum(formData.get("fine_weight_oz"));
+  const series = str(formData.get("series"));
+  const mintmark = str(formData.get("mintmark"));
+  const variety = str(formData.get("variety"));
+  const coinTypeId = str(formData.get("coin_type_id"));
+  const fromCollectionItemId = str(formData.get("from_collection_item_id"));
+
   const { data: created } = await supabase
     .from("inventory_items")
     .insert({
@@ -74,12 +89,29 @@ export async function addInventoryItem(formData: FormData) {
       description,
       shipping_note: shippingNote,
       photos,
+      grade: gradeVal,
+      designation,
+      metal,
+      fine_weight_oz: fineWeightOz,
+      series,
+      year: year != null ? Math.round(year) : null,
+      mintmark,
+      variety,
+      coin_type_id: coinTypeId,
       status: "listed",
       is_public: true,
       listed_at: new Date().toISOString(),
     })
     .select("id")
     .single();
+
+  // Link back to the collection item so it shows "Listed on marketplace".
+  if (created && fromCollectionItemId) {
+    await supabase
+      .from("collection_items")
+      .update({ inventory_item_id: created.id })
+      .eq("id", fromCollectionItemId);
+  }
 
   // Cost is private (a dealer's margin) — stored in an owner-only table.
   if (created && costCents != null) {
@@ -104,14 +136,15 @@ export async function setItemListed(formData: FormData) {
   const listed = formData.get("listed") === "true";
   if (!id) return;
   const supabase = await createClient();
-  await supabase
-    .from("inventory_items")
-    .update({
-      status: listed ? "listed" : "unlisted",
-      is_public: listed,
-      listed_at: listed ? new Date().toISOString() : null,
-    })
-    .eq("id", id);
+  // Capture a typed-but-not-yet-saved price so listing uses it, not $0.
+  const priceCents = toCents(formData.get("price"));
+  const update: Record<string, unknown> = {
+    status: listed ? "listed" : "unlisted",
+    is_public: listed,
+    listed_at: listed ? new Date().toISOString() : null,
+  };
+  if (priceCents != null) update.price_cents = priceCents;
+  await supabase.from("inventory_items").update(update).eq("id", id);
   redirect(listed ? `/dealer/inventory/${id}?listed=1` : `/dealer/inventory/${id}`);
 }
 

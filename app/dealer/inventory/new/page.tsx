@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addInventoryItem } from "@/app/dealer/inventory/actions";
 import { GRADING_SERVICES } from "@/lib/coins";
 import { PhotoUploader } from "@/components/photo-uploader";
+import { publicPhotoUrl } from "@/lib/photos";
 import { Button } from "@/components/ui/button";
 import { aiConfigured } from "@/lib/anthropic";
 
@@ -31,7 +32,31 @@ function Field({
   );
 }
 
-export default async function AddInventoryItemPage() {
+type CollectionItem = {
+  id: string;
+  title: string | null;
+  notes: string | null;
+  photos: string[] | null;
+  grading_service: string | null;
+  cert_number: string | null;
+  acquired_price_cents: number | null;
+  grade: number | null;
+  designation: string | null;
+  metal: string | null;
+  fine_weight_oz: number | null;
+  series: string | null;
+  year: number | null;
+  mintmark: string | null;
+  variety: string | null;
+  coin_type_id: string | null;
+};
+
+export default async function AddInventoryItemPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
+  const { from } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -45,7 +70,20 @@ export default async function AddInventoryItemPage() {
     .from("dealers")
     .select("id")
     .eq("profile_id", profile!.id)
-    .single();
+    .maybeSingle();
+
+  let ci: CollectionItem | null = null;
+  if (from) {
+    const { data } = await supabase
+      .from("collection_items")
+      .select(
+        "id, title, notes, photos, grading_service, cert_number, acquired_price_cents, grade, designation, metal, fine_weight_oz, series, year, mintmark, variety, coin_type_id",
+      )
+      .eq("id", from)
+      .maybeSingle();
+    ci = (data as CollectionItem) ?? null;
+  }
+  const prefillPhotos: string[] = ci?.photos ?? [];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -54,15 +92,51 @@ export default async function AddInventoryItemPage() {
           Inventory
         </Link>
         <span>/</span>
-        <span>Add item</span>
+        <span>{ci ? "List from collection" : "Add item"}</span>
       </div>
-      <h1 className="mt-1 text-2xl font-semibold">Add a coin</h1>
+      <h1 className="mt-1 text-2xl font-semibold">
+        {ci ? "List a coin from your collection" : "Add a coin"}
+      </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Enter a title, add photos, set a price. It goes live on the marketplace
-        automatically.
+        {ci
+          ? "Your coin's details are filled in below. Set a price and it goes live on the marketplace."
+          : "Enter a title, add photos, set a price. It goes live on the marketplace automatically."}
       </p>
 
       <form action={addInventoryItem} className="mt-6 space-y-6">
+        {ci && (
+          <>
+            <input type="hidden" name="from_collection_item_id" value={ci.id} />
+            {ci.grade != null && (
+              <input type="hidden" name="grade" value={ci.grade} />
+            )}
+            {ci.designation && (
+              <input type="hidden" name="designation" value={ci.designation} />
+            )}
+            {ci.metal && <input type="hidden" name="metal" value={ci.metal} />}
+            {ci.fine_weight_oz != null && (
+              <input
+                type="hidden"
+                name="fine_weight_oz"
+                value={ci.fine_weight_oz}
+              />
+            )}
+            {ci.series && <input type="hidden" name="series" value={ci.series} />}
+            {ci.year != null && (
+              <input type="hidden" name="year" value={ci.year} />
+            )}
+            {ci.mintmark && (
+              <input type="hidden" name="mintmark" value={ci.mintmark} />
+            )}
+            {ci.variety && (
+              <input type="hidden" name="variety" value={ci.variety} />
+            )}
+            {ci.coin_type_id && (
+              <input type="hidden" name="coin_type_id" value={ci.coin_type_id} />
+            )}
+          </>
+        )}
+
         <Field
           label="Title"
           name="title"
@@ -72,6 +146,7 @@ export default async function AddInventoryItemPage() {
             id="title"
             name="title"
             required
+            defaultValue={ci?.title ?? ""}
             placeholder="1881-S Morgan Dollar MS65 PCGS"
             className={inputCls}
           />
@@ -79,6 +154,21 @@ export default async function AddInventoryItemPage() {
 
         <div className="space-y-2">
           <span className="text-sm font-medium">Photos</span>
+          {prefillPhotos.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {prefillPhotos.map((p) => (
+                <div key={p}>
+                  <input type="hidden" name="photos" value={p} />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={publicPhotoUrl(p)}
+                    alt=""
+                    className="h-24 w-24 rounded-md border object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           {dealer && <PhotoUploader dealerId={dealer.id} />}
         </div>
 
@@ -100,12 +190,22 @@ export default async function AddInventoryItemPage() {
               name="cost"
               type="number"
               step="0.01"
+              defaultValue={
+                ci?.acquired_price_cents != null
+                  ? (ci.acquired_price_cents / 100).toFixed(2)
+                  : ""
+              }
               placeholder="e.g. 3200.00"
               className={inputCls}
             />
           </Field>
           <Field label="Grading service" name="grading_service" hint="Optional">
-            <select id="grading_service" name="grading_service" defaultValue="" className={inputCls}>
+            <select
+              id="grading_service"
+              name="grading_service"
+              defaultValue={ci?.grading_service ?? ""}
+              className={inputCls}
+            >
               <option value="">—</option>
               {GRADING_SERVICES.map((s) => (
                 <option key={s} value={s}>
@@ -115,12 +215,23 @@ export default async function AddInventoryItemPage() {
             </select>
           </Field>
           <Field label="Cert number" name="cert_number" hint="Optional">
-            <input id="cert_number" name="cert_number" className={inputCls} />
+            <input
+              id="cert_number"
+              name="cert_number"
+              defaultValue={ci?.cert_number ?? ""}
+              className={inputCls}
+            />
           </Field>
         </div>
 
         <Field label="Description" name="description" hint="Optional">
-          <textarea id="description" name="description" rows={3} className={inputCls} />
+          <textarea
+            id="description"
+            name="description"
+            rows={3}
+            defaultValue={ci?.notes ?? ""}
+            className={inputCls}
+          />
         </Field>
 
         <Field
@@ -149,7 +260,7 @@ export default async function AddInventoryItemPage() {
 
         <div className="flex items-center justify-end gap-3 border-t pt-4">
           <Link
-            href="/dealer/inventory"
+            href={ci ? `/collection/${ci.id}` : "/dealer/inventory"}
             className="text-sm text-muted-foreground hover:underline"
           >
             Cancel
