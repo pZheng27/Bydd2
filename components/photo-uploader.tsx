@@ -10,7 +10,14 @@ type Uploaded = { path: string; url: string };
  * emits the resulting object paths as hidden <input name="photos"> fields so
  * the surrounding form's server action can save them on the item.
  */
-export function PhotoUploader({ dealerId }: { dealerId: string }) {
+export function PhotoUploader({
+  dealerId,
+  prefix,
+}: {
+  dealerId?: string;
+  prefix?: string;
+}) {
+  const folder = prefix ?? dealerId ?? "misc";
   const [items, setItems] = useState<Uploaded[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +31,7 @@ export function PhotoUploader({ dealerId }: { dealerId: string }) {
     try {
       for (const file of files) {
         const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${dealerId}/${crypto.randomUUID()}.${ext}`;
+        const path = `${folder}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("item-photos")
           .upload(path, file, { contentType: file.type, upsert: false });

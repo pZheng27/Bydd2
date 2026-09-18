@@ -7,7 +7,7 @@ const LINKS = [
   {
     href: "/collection",
     title: "My Collection",
-    desc: "Your collection (fills in later).",
+    desc: "The coins you own — add them by hand.",
   },
 ];
 
