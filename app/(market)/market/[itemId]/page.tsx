@@ -87,7 +87,7 @@ export default async function MarketItemPage({
             <img
               src={publicPhotoUrl(photos[0])}
               alt=""
-              className="aspect-square w-full rounded-xl border object-cover"
+              className="aspect-square w-full rounded-xl border bg-muted object-contain"
             />
           ) : (
             <div className="aspect-square w-full rounded-xl border bg-muted" />
@@ -100,7 +100,7 @@ export default async function MarketItemPage({
                   key={p}
                   src={publicPhotoUrl(p)}
                   alt=""
-                  className="aspect-square w-full rounded-md border object-cover"
+                  className="aspect-square w-full rounded-md border bg-muted object-contain"
                 />
               ))}
             </div>

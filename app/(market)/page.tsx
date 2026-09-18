@@ -135,7 +135,7 @@ export default async function MarketplaceHome({
                 <img
                   src={publicPhotoUrl(it.photos[0])}
                   alt=""
-                  className="aspect-square w-full object-cover"
+                  className="aspect-square w-full bg-muted object-contain"
                 />
               ) : (
                 <div className="aspect-square w-full bg-muted" />
