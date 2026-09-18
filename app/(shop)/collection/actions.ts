@@ -47,7 +47,26 @@ async function myCollectionId(
   return created.data?.id ?? null;
 }
 
-/** Add a coin the collector owns (hand-entered). */
+/** The catalog coin's descriptive fields, copied onto an item when it's linked. */
+async function catalogFields(supabase: SupabaseClient, coinTypeId: string) {
+  const { data: ct } = await supabase
+    .from("coin_types")
+    .select("series, year, mintmark, variety, metal, fine_weight_oz")
+    .eq("id", coinTypeId)
+    .maybeSingle();
+  return ct
+    ? {
+        series: ct.series,
+        year: ct.year,
+        mintmark: ct.mintmark,
+        variety: ct.variety,
+        metal: ct.metal,
+        fine_weight_oz: ct.fine_weight_oz,
+      }
+    : {};
+}
+
+/** Add a coin the collector owns (hand-entered, optionally linked to the catalog). */
 export async function addCollectionItem(formData: FormData) {
   const supabase = await createClient();
   const collectionId = await myCollectionId(supabase);
@@ -57,9 +76,12 @@ export async function addCollectionItem(formData: FormData) {
   const gradeVal =
     grade != null && grade >= 1 && grade <= 70 ? Math.round(grade) : null;
   const photos = formData.getAll("photos").map(String).filter(Boolean);
+  const coinTypeId = str(formData.get("coin_type_id"));
 
   await supabase.from("collection_items").insert({
     collection_id: collectionId,
+    coin_type_id: coinTypeId,
+    ...(coinTypeId ? await catalogFields(supabase, coinTypeId) : {}),
     title: str(formData.get("title")) ?? "Untitled coin",
     grading_service: str(formData.get("grading_service")),
     cert_number: str(formData.get("cert_number")),
@@ -70,6 +92,33 @@ export async function addCollectionItem(formData: FormData) {
   });
 
   redirect("/collection");
+}
+
+/**
+ * Link (or unlink) a collection item to a catalog coin. Linking copies the
+ * catalog's series/year/mintmark/etc. onto the item and is what makes the coin
+ * count toward set completion. An empty coin_type_id clears the link.
+ */
+export async function linkCollectionItemToCatalog(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  const coinTypeId = str(formData.get("coin_type_id"));
+
+  if (!coinTypeId) {
+    await supabase
+      .from("collection_items")
+      .update({ coin_type_id: null })
+      .eq("id", id);
+    redirect(`/collection/${id}`);
+    return;
+  }
+
+  await supabase
+    .from("collection_items")
+    .update({ coin_type_id: coinTypeId, ...(await catalogFields(supabase, coinTypeId)) })
+    .eq("id", id);
+  redirect(`/collection/${id}`);
 }
 
 /** Remove a coin from the collection (and its photos). */

@@ -43,6 +43,7 @@ export async function addWant(formData: FormData) {
   if (!profileId) return;
   await supabase.from("wants").insert({
     profile_id: profileId,
+    coin_type_id: str(formData.get("coin_type_id")),
     title: str(formData.get("title")) ?? "Untitled want",
     grade_min: grade(formData.get("grade_min")),
     grade_max: grade(formData.get("grade_max")),

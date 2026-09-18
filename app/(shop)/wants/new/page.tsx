@@ -30,9 +30,9 @@ function Field({
 export default async function NewWantPage({
   searchParams,
 }: {
-  searchParams: Promise<{ title?: string }>;
+  searchParams: Promise<{ title?: string; coin_type_id?: string }>;
 }) {
-  const { title = "" } = await searchParams;
+  const { title = "", coin_type_id = "" } = await searchParams;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -50,6 +50,9 @@ export default async function NewWantPage({
       </p>
 
       <form action={addWant} className="mt-6 space-y-6">
+        {coin_type_id && (
+          <input type="hidden" name="coin_type_id" value={coin_type_id} />
+        )}
         <Field
           label="What are you looking for?"
           name="title"

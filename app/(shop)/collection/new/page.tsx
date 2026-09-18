@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { addCollectionItem } from "../actions";
 import { GRADING_SERVICES } from "@/lib/coins";
+import { getCoinTypes } from "@/lib/catalog";
+import { CatalogSelect } from "@/components/catalog-select";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { Button } from "@/components/ui/button";
 
@@ -52,6 +54,8 @@ export default async function AddCollectionItemPage() {
     }
   }
 
+  const coins = await getCoinTypes(supabase);
+
   return (
     <div className="mx-auto max-w-2xl">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -63,8 +67,8 @@ export default async function AddCollectionItemPage() {
       </div>
       <h1 className="mt-1 text-2xl font-semibold">Add a coin you own</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Enter what you know. You can link it to the catalog and track sets once
-        the catalog arrives next session.
+        Enter what you know. Link it to a catalog coin so it counts toward your
+        sets.
       </p>
 
       <form action={addCollectionItem} className="mt-6 space-y-6">
@@ -81,6 +85,22 @@ export default async function AddCollectionItemPage() {
             className={inputCls}
           />
         </Field>
+
+        {coins.length > 0 && (
+          <Field
+            label="Catalog coin"
+            name="coin_type_id"
+            hint="Optional — links this coin to the catalog so it fills your set grid."
+          >
+            <CatalogSelect
+              id="coin_type_id"
+              name="coin_type_id"
+              coins={coins}
+              className={inputCls}
+              blankLabel="— Not linked —"
+            />
+          </Field>
+        )}
 
         <div className="space-y-2">
           <span className="text-sm font-medium">Photos</span>
