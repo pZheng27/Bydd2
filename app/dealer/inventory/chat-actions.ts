@@ -383,16 +383,35 @@ Looking up comps: You can search approved sources with the web_search tool, but 
             const priceUsd = n((tu.input as { price_usd?: unknown }).price_usd);
             if (priceUsd != null && priceUsd >= 0) {
               const cents = Math.round(priceUsd * 100);
-              await supabase
-                .from("inventory_items")
-                .update({ price_cents: cents })
-                .eq("id", itemId);
-              ruleChanged = true;
-              results.push({
-                type: "tool_result",
-                tool_use_id: tu.id,
-                content: `Price set to ${fmtMoney(cents)}.`,
-              });
+              const oldCents = item!.price_cents;
+              if (cents !== oldCents) {
+                // Apply the new price AND log it to the activity feed atomically,
+                // via the same record_reprice path the "Reprice now" button uses,
+                // so an assistant-driven reprice shows up in the activity log.
+                await supabase.rpc("record_reprice", {
+                  p_item_id: itemId,
+                  p_new_price_cents: cents,
+                  p_summary: `Repriced ${fmtMoney(oldCents)} → ${fmtMoney(cents)} via the pricing assistant`,
+                  p_payload: {
+                    old_price_cents: oldCents,
+                    new_price_cents: cents,
+                    source: "assistant",
+                  },
+                });
+                item!.price_cents = cents;
+                ruleChanged = true;
+                results.push({
+                  type: "tool_result",
+                  tool_use_id: tu.id,
+                  content: `Price set to ${fmtMoney(cents)} and logged to the activity feed.`,
+                });
+              } else {
+                results.push({
+                  type: "tool_result",
+                  tool_use_id: tu.id,
+                  content: `The price is already ${fmtMoney(cents)}, so nothing changed.`,
+                });
+              }
             } else {
               results.push({
                 type: "tool_result",
