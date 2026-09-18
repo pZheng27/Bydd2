@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
-import { deleteCollectionItem } from "../actions";
+import { deleteCollectionItem, sellThisCoin } from "../actions";
+import { Button } from "@/components/ui/button";
 
 export default async function CollectionItemPage({
   params,
@@ -85,14 +86,22 @@ export default async function CollectionItemPage({
             </div>
           )}
 
-          <div className="mt-6 border-t pt-4">
+          <div className="mt-6 flex flex-wrap items-center gap-3 border-t pt-4">
+            <form action={sellThisCoin}>
+              <input type="hidden" name="id" value={item.id} />
+              <Button type="submit">Sell this coin</Button>
+            </form>
             <form action={deleteCollectionItem}>
               <input type="hidden" name="id" value={item.id} />
               <button className="rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted">
-                Remove from collection
+                Remove
               </button>
             </form>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            &ldquo;Sell this coin&rdquo; copies it into your dealer inventory as a
+            draft — set a price and list it there.
+          </p>
         </div>
       </div>
     </div>

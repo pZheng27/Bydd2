@@ -115,6 +115,19 @@ export async function setItemListed(formData: FormData) {
   redirect(`/dealer/inventory/${id}`);
 }
 
+/** Manually set an item's price (e.g. pricing a draft from "Sell this coin"). */
+export async function setItemPrice(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  const cents = toCents(formData.get("price")) ?? 0;
+  await supabase
+    .from("inventory_items")
+    .update({ price_cents: cents })
+    .eq("id", id);
+  redirect(`/dealer/inventory/${id}`);
+}
+
 /** Permanently delete an item and its photos. */
 export async function deleteItem(formData: FormData) {
   const id = String(formData.get("id") ?? "");

@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { itemSignals } from "@/lib/pricing-context";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
-import { setItemListed, deleteItem } from "@/app/dealer/inventory/actions";
+import {
+  setItemListed,
+  deleteItem,
+  setItemPrice,
+} from "@/app/dealer/inventory/actions";
 import {
   setWatchAuctions,
   checkAuctionsNow,
@@ -179,6 +183,22 @@ export default async function ItemDetailPage({
           <p className="mt-1 text-sm text-muted-foreground">
             Your cost: {fmtMoney(costCents)}
           </p>
+          <form action={setItemPrice} className="mt-2 flex items-center gap-2">
+            <input type="hidden" name="id" value={item.id} />
+            <input
+              name="price"
+              type="number"
+              step="0.01"
+              defaultValue={
+                item.price_cents ? (item.price_cents / 100).toFixed(2) : ""
+              }
+              placeholder="Set price (USD)"
+              className="w-36 rounded-md border bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <button className="rounded-md border px-2 py-1 text-sm hover:bg-muted">
+              Save
+            </button>
+          </form>
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <span>

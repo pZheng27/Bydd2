@@ -88,3 +88,82 @@ export async function deleteCollectionItem(formData: FormData) {
   await supabase.from("collection_items").delete().eq("id", id);
   redirect("/collection");
 }
+
+/**
+ * Copy a collection item into the dealer's inventory as an unlisted draft
+ * (auto-creating the dealer if needed), carrying the acquisition price over as
+ * the private cost basis. Drops the user on the item page to price and list it.
+ */
+export async function sellThisCoin(formData: FormData) {
+  const collItemId = String(formData.get("id") ?? "");
+  if (!collItemId) return;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!prof) return;
+
+  const { data: ci } = await supabase
+    .from("collection_items")
+    .select(
+      "title, series, year, mintmark, variety, metal, fine_weight_oz, grade, designation, grading_service, cert_number, notes, photos, coin_type_id, acquired_price_cents",
+    )
+    .eq("id", collItemId)
+    .single();
+  if (!ci) return;
+
+  let { data: dealer } = await supabase
+    .from("dealers")
+    .select("id")
+    .eq("profile_id", prof.id)
+    .maybeSingle();
+  if (!dealer) {
+    const created = await supabase
+      .from("dealers")
+      .insert({ profile_id: prof.id })
+      .select("id")
+      .single();
+    dealer = created.data;
+  }
+  if (!dealer) return;
+
+  const { data: inv } = await supabase
+    .from("inventory_items")
+    .insert({
+      dealer_id: dealer.id,
+      coin_type_id: ci.coin_type_id,
+      title: ci.title,
+      series: ci.series,
+      year: ci.year,
+      mintmark: ci.mintmark,
+      variety: ci.variety,
+      metal: ci.metal,
+      fine_weight_oz: ci.fine_weight_oz,
+      grade: ci.grade,
+      designation: ci.designation,
+      grading_service: ci.grading_service,
+      cert_number: ci.cert_number,
+      description: ci.notes,
+      photos: ci.photos ?? [],
+      price_cents: 0,
+      status: "unlisted",
+      is_public: false,
+    })
+    .select("id")
+    .single();
+  if (!inv) return;
+
+  if (ci.acquired_price_cents != null) {
+    await supabase
+      .from("inventory_costs")
+      .insert({ inventory_item_id: inv.id, cost_cents: ci.acquired_price_cents });
+  }
+
+  redirect(`/dealer/inventory/${inv.id}`);
+}
