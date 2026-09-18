@@ -165,5 +165,11 @@ export async function sellThisCoin(formData: FormData) {
       .insert({ inventory_item_id: inv.id, cost_cents: ci.acquired_price_cents });
   }
 
+  // Link the collection item to its listing so we can show "Listed on marketplace".
+  await supabase
+    .from("collection_items")
+    .update({ inventory_item_id: inv.id })
+    .eq("id", collItemId);
+
   redirect(`/dealer/inventory/${inv.id}`);
 }

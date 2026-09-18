@@ -13,6 +13,7 @@ import {
   setWatchAuctions,
   checkAuctionsNow,
 } from "@/app/dealer/inventory/watch-actions";
+import { repriceItem } from "@/app/dealer/inventory/pricing-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ItemChat } from "@/components/item-chat";
@@ -36,10 +37,14 @@ function Panel({ title, note }: { title: string; note: string }) {
 
 export default async function ItemDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ listed?: string }>;
 }) {
   const { id } = await params;
+  const { listed: listedFlag } = await searchParams;
+  const justListed = listedFlag === "1";
   const supabase = await createClient();
   const { data: item } = await supabase
     .from("inventory_items")
@@ -47,6 +52,15 @@ export default async function ItemDetailPage({
     .eq("id", id)
     .single();
   if (!item) notFound();
+
+  const { data: rule } = await supabase
+    .from("pricing_rules")
+    .select("id")
+    .eq("inventory_item_id", id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+  const hasRule = !!rule;
 
   // Live demand signals (watch count shown in the header).
   const { data: dealer } = await supabase
@@ -105,6 +119,32 @@ export default async function ItemDetailPage({
         <span>/</span>
         <span className="truncate">{item.title || "Untitled coin"}</span>
       </div>
+
+      {justListed && (
+        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
+          <div className="text-sm font-medium text-green-800 dark:text-green-300">
+            ✓ Listed on the marketplace
+          </div>
+          <p className="mt-1 text-sm text-green-800/80 dark:text-green-300/80">
+            Your coin is now live for buyers.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href={`/dealer/inventory/${item.id}`}>
+              <Button size="sm">View item</Button>
+            </Link>
+            <Link href="/dealer/inventory">
+              <Button size="sm" variant="outline">
+                Return to inventory
+              </Button>
+            </Link>
+            <Link href="/dealer/inventory/new">
+              <Button size="sm" variant="outline">
+                List another
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 grid gap-6 sm:grid-cols-2">
         <div className="space-y-3">
@@ -238,6 +278,26 @@ export default async function ItemDetailPage({
             </p>
           )}
         </div>
+
+        {hasRule && (
+          <div className="rounded-xl border p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">Automatic reprice</div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Recompute this coin&apos;s price from the spot-linked rule the
+                  assistant set, using the current metal price.
+                </p>
+              </div>
+              <form action={repriceItem}>
+                <input type="hidden" name="item_id" value={item.id} />
+                <Button type="submit" size="sm" variant="outline">
+                  Reprice now
+                </Button>
+              </form>
+            </div>
+          </div>
+        )}
 
         <ItemChat itemId={id} initial={chatHistory} configured={aiConfigured()} />
       </div>

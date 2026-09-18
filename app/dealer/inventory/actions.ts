@@ -112,7 +112,7 @@ export async function setItemListed(formData: FormData) {
       listed_at: listed ? new Date().toISOString() : null,
     })
     .eq("id", id);
-  redirect(`/dealer/inventory/${id}`);
+  redirect(listed ? `/dealer/inventory/${id}?listed=1` : `/dealer/inventory/${id}`);
 }
 
 /** Manually set an item's price (e.g. pricing a draft from "Sell this coin"). */

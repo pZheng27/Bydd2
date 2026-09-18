@@ -20,6 +20,16 @@ export default async function CollectionItemPage({
     .single();
   if (!item) notFound();
 
+  let listedOnMarket = false;
+  if (item.inventory_item_id) {
+    const { data: inv } = await supabase
+      .from("inventory_items")
+      .select("status")
+      .eq("id", item.inventory_item_id)
+      .maybeSingle();
+    listedOnMarket = inv?.status === "listed";
+  }
+
   const photos: string[] = item.photos ?? [];
 
   return (
@@ -67,6 +77,11 @@ export default async function CollectionItemPage({
             {gradeLabel(item)}
             {item.cert_number ? ` · Cert ${item.cert_number}` : ""}
           </p>
+          {listedOnMarket && (
+            <div className="mt-2 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
+              Listed on marketplace
+            </div>
+          )}
 
           {item.acquired_price_cents != null && (
             <div className="mt-4 text-sm">

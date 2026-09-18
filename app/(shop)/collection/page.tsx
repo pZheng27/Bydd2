@@ -15,6 +15,7 @@ type Item = {
   notes: string | null;
   photos: string[] | null;
   acquired_price_cents: number | null;
+  inventory_item_id: string | null;
 };
 
 export default async function CollectionPage() {
@@ -24,6 +25,7 @@ export default async function CollectionPage() {
   } = await supabase.auth.getUser();
 
   let items: Item[] = [];
+  const listedIds = new Set<string>();
   if (user) {
     const { data: prof } = await supabase
       .from("profiles")
@@ -40,11 +42,23 @@ export default async function CollectionPage() {
         const { data } = await supabase
           .from("collection_items")
           .select(
-            "id, title, grade, designation, grading_service, cert_number, notes, photos, acquired_price_cents",
+            "id, title, grade, designation, grading_service, cert_number, notes, photos, acquired_price_cents, inventory_item_id",
           )
           .eq("collection_id", col.id)
           .order("created_at", { ascending: false });
         items = (data as Item[]) ?? [];
+
+        const invIds = items
+          .map((i) => i.inventory_item_id)
+          .filter((x): x is string => !!x);
+        if (invIds.length) {
+          const { data: invs } = await supabase
+            .from("inventory_items")
+            .select("id, status")
+            .in("id", invIds);
+          for (const iv of invs ?? [])
+            if (iv.status === "listed") listedIds.add(iv.id);
+        }
       }
     }
   }
@@ -90,6 +104,11 @@ export default async function CollectionPage() {
                     {gradeLabel(it)}
                     {it.cert_number ? ` · Cert ${it.cert_number}` : ""}
                   </div>
+                  {it.inventory_item_id && listedIds.has(it.inventory_item_id) && (
+                    <div className="mt-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
+                      Listed on marketplace
+                    </div>
+                  )}
                   {it.acquired_price_cents != null && (
                     <div className="mt-0.5 text-xs text-muted-foreground">
                       Paid {fmtMoney(it.acquired_price_cents)}
