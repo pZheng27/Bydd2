@@ -172,6 +172,13 @@ export default async function MarketItemPage({
                 itemId={item.id}
                 sellerName={item.dealers?.business_name}
               />
+
+              <Link
+                href={`/wants/new?title=${encodeURIComponent(item.title || "")}`}
+                className="block text-center text-sm text-muted-foreground underline hover:text-foreground"
+              >
+                Looking for one like this? Add to wants
+              </Link>
             </div>
           )}
 

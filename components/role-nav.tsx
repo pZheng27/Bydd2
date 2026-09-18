@@ -10,6 +10,7 @@ const COLLECTOR_PREFIXES = [
   "/orders",
   "/offers",
   "/collection",
+  "/wants",
 ];
 
 /** Top-level area nav: Collector and Dealer. Marketplace is the neutral home. */

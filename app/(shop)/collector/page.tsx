@@ -9,6 +9,11 @@ const LINKS = [
     title: "My Collection",
     desc: "The coins you own — add them by hand.",
   },
+  {
+    href: "/wants",
+    title: "Wants",
+    desc: "Coins you're looking for.",
+  },
 ];
 
 export default function CollectorHubPage() {

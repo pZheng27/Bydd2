@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/orders", label: "Orders" },
   { href: "/offers", label: "Offers" },
   { href: "/collection", label: "Collection" },
+  { href: "/wants", label: "Wants" },
 ];
 
 /** Sub-navigation for the collector (buyer) area. */

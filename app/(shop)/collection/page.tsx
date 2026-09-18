@@ -68,35 +68,42 @@ export default async function CollectionPage() {
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((it) => (
             <div key={it.id} className="overflow-hidden rounded-xl border">
-              {it.photos?.[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={publicPhotoUrl(it.photos[0])}
-                  alt=""
-                  className="aspect-square w-full object-cover"
-                />
-              ) : (
-                <div className="aspect-square w-full bg-muted" />
-              )}
-              <div className="p-3">
-                <div className="truncate text-sm font-medium">
-                  {it.title || "Untitled coin"}
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {gradeLabel(it)}
-                  {it.cert_number ? ` · Cert ${it.cert_number}` : ""}
-                </div>
-                {it.acquired_price_cents != null && (
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    Paid {fmtMoney(it.acquired_price_cents)}
+              <Link
+                href={`/collection/${it.id}`}
+                className="block hover:bg-muted/40"
+              >
+                {it.photos?.[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={publicPhotoUrl(it.photos[0])}
+                    alt=""
+                    className="aspect-square w-full object-cover"
+                  />
+                ) : (
+                  <div className="aspect-square w-full bg-muted" />
+                )}
+                <div className="p-3">
+                  <div className="truncate text-sm font-medium">
+                    {it.title || "Untitled coin"}
                   </div>
-                )}
-                {it.notes && (
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {it.notes}
-                  </p>
-                )}
-                <form action={deleteCollectionItem} className="mt-2">
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {gradeLabel(it)}
+                    {it.cert_number ? ` · Cert ${it.cert_number}` : ""}
+                  </div>
+                  {it.acquired_price_cents != null && (
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      Paid {fmtMoney(it.acquired_price_cents)}
+                    </div>
+                  )}
+                  {it.notes && (
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {it.notes}
+                    </p>
+                  )}
+                </div>
+              </Link>
+              <div className="border-t px-3 py-2">
+                <form action={deleteCollectionItem}>
                   <input type="hidden" name="id" value={it.id} />
                   <button className="text-xs text-muted-foreground underline hover:text-destructive">
                     Remove
