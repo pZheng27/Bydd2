@@ -81,9 +81,14 @@ export default async function DealerInventoryPage({
             Add form or the item page.
           </p>
         </div>
-        <Link href="/dealer/inventory/new">
-          <Button>Add item</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dealer/inventory/import">
+            <Button variant="outline">Import CSV</Button>
+          </Link>
+          <Link href="/dealer/inventory/new">
+            <Button>Add item</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-1">
