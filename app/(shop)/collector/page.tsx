@@ -1,6 +1,11 @@
 import Link from "next/link";
 
 const LINKS = [
+  {
+    href: "/agent",
+    title: "Buyer agent",
+    desc: "Chat to find coins for your gaps and draft offers.",
+  },
   { href: "/saved", title: "Saved", desc: "Coins you've saved to watch." },
   { href: "/orders", title: "Orders", desc: "Your purchases and sales." },
   { href: "/offers", title: "Offers", desc: "Offers you've made." },
