@@ -92,6 +92,32 @@ export async function updateWant(formData: FormData) {
   redirect("/wants");
 }
 
+const WANT_STATUSES = new Set(["open", "filled", "cancelled"]);
+
+/**
+ * Quick status change from the Wants list: fulfill (filled), pause (cancelled),
+ * or reopen (open). Reopening re-routes the want so it goes back out to dealers.
+ */
+export async function setWantStatus(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (!id || !WANT_STATUSES.has(status)) return;
+  const supabase = await createClient();
+  await supabase.from("wants").update({ status }).eq("id", id);
+
+  if (status === "open") {
+    const admin = createAdminClient();
+    if (admin) {
+      try {
+        await runRoutingForWant(admin, id);
+      } catch (e) {
+        console.error("re-route on reopen failed", id, e);
+      }
+    }
+  }
+  redirect("/wants");
+}
+
 /** Delete a want. */
 export async function deleteWant(formData: FormData) {
   const id = String(formData.get("id") ?? "");

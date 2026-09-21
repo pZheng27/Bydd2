@@ -120,7 +120,7 @@ export default async function WantDetailPage({
           >
             <option value="open">Open</option>
             <option value="filled">Filled</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="cancelled">Paused</option>
           </select>
         </Field>
 

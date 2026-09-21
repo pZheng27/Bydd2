@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney } from "@/lib/format";
+import { setWantStatus, deleteWant } from "./actions";
 import { Button } from "@/components/ui/button";
 
 type Want = {
@@ -24,6 +25,33 @@ const STATUS_STYLES: Record<string, string> = {
   filled: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
   cancelled: "bg-muted text-muted-foreground",
 };
+// "cancelled" is the paused/inactive state in the UI.
+const STATUS_LABELS: Record<string, string> = {
+  open: "Open",
+  filled: "Filled",
+  cancelled: "Paused",
+};
+
+/** A one-click status form (fulfill / pause / reopen). */
+function StatusButton({
+  id,
+  status,
+  label,
+}: {
+  id: string;
+  status: "open" | "filled" | "cancelled";
+  label: string;
+}) {
+  return (
+    <form action={setWantStatus}>
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="status" value={status} />
+      <Button type="submit" size="xs" variant="outline">
+        {label}
+      </Button>
+    </form>
+  );
+}
 
 export default async function WantsPage() {
   const supabase = await createClient();
@@ -54,8 +82,8 @@ export default async function WantsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Wants</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Coins you&apos;re looking for. Dealers get matched to these in a later
-            session.
+            Coins you&apos;re looking for — routed to dealers likely to have them.
+            Fulfill, pause, or delete any want right here.
           </p>
         </div>
         <Link href="/wants/new">
@@ -66,28 +94,57 @@ export default async function WantsPage() {
       {wants.length > 0 ? (
         <ul className="mt-6 divide-y rounded-xl border">
           {wants.map((w) => (
-            <li key={w.id}>
+            <li
+              key={w.id}
+              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3"
+            >
               <Link
                 href={`/wants/${w.id}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40"
+                className="min-w-0 flex-1 hover:opacity-80"
               >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">
-                    {w.title || "Untitled want"}
-                  </div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    {gradeText(w.grade_min, w.grade_max)}
-                    {w.budget_cents != null
-                      ? ` · up to ${fmtMoney(w.budget_cents)}`
-                      : ""}
-                  </div>
+                <div className="truncate text-sm font-medium">
+                  {w.title || "Untitled want"}
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[w.status] ?? "bg-muted text-muted-foreground"}`}
-                >
-                  {w.status}
-                </span>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {gradeText(w.grade_min, w.grade_max)}
+                  {w.budget_cents != null
+                    ? ` · up to ${fmtMoney(w.budget_cents)}`
+                    : ""}
+                </div>
               </Link>
+
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[w.status] ?? "bg-muted text-muted-foreground"}`}
+                >
+                  {STATUS_LABELS[w.status] ?? w.status}
+                </span>
+
+                {w.status === "open" ? (
+                  <>
+                    <StatusButton id={w.id} status="filled" label="Fulfill" />
+                    <StatusButton id={w.id} status="cancelled" label="Pause" />
+                  </>
+                ) : (
+                  <StatusButton
+                    id={w.id}
+                    status="open"
+                    label={w.status === "filled" ? "Reopen" : "Resume"}
+                  />
+                )}
+
+                <form action={deleteWant}>
+                  <input type="hidden" name="id" value={w.id} />
+                  <Button
+                    type="submit"
+                    size="xs"
+                    variant="ghost"
+                    className="text-destructive"
+                  >
+                    Delete
+                  </Button>
+                </form>
+              </div>
             </li>
           ))}
         </ul>
