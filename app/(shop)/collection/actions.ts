@@ -77,21 +77,42 @@ export async function addCollectionItem(formData: FormData) {
     grade != null && grade >= 1 && grade <= 70 ? Math.round(grade) : null;
   const photos = formData.getAll("photos").map(String).filter(Boolean);
   const coinTypeId = str(formData.get("coin_type_id"));
+  const setId = str(formData.get("collection_set_id"));
 
-  await supabase.from("collection_items").insert({
-    collection_id: collectionId,
-    coin_type_id: coinTypeId,
-    ...(coinTypeId ? await catalogFields(supabase, coinTypeId) : {}),
-    title: str(formData.get("title")) ?? "Untitled coin",
-    grading_service: str(formData.get("grading_service")),
-    cert_number: str(formData.get("cert_number")),
-    grade: gradeVal,
-    notes: str(formData.get("notes")),
-    acquired_price_cents: toCents(formData.get("acquired_price")),
-    photos,
-  });
+  const { data: created } = await supabase
+    .from("collection_items")
+    .insert({
+      collection_id: collectionId,
+      coin_type_id: coinTypeId,
+      ...(coinTypeId ? await catalogFields(supabase, coinTypeId) : {}),
+      title: str(formData.get("title")) ?? "Untitled coin",
+      grading_service: str(formData.get("grading_service")),
+      cert_number: str(formData.get("cert_number")),
+      grade: gradeVal,
+      notes: str(formData.get("notes")),
+      acquired_price_cents: toCents(formData.get("acquired_price")),
+      photos,
+    })
+    .select("id")
+    .single();
 
-  redirect("/collection");
+  // A freeform set holds specific coins, so link the new coin into it. A series
+  // (checklist) set instead checks off automatically via coin_type_id above, so
+  // it needs no membership row.
+  if (created && setId) {
+    const { data: set } = await supabase
+      .from("collection_sets")
+      .select("source_set_id")
+      .eq("id", setId)
+      .maybeSingle();
+    if (set && !set.source_set_id) {
+      await supabase
+        .from("collection_set_coins")
+        .insert({ collection_set_id: setId, collection_item_id: created.id });
+    }
+  }
+
+  redirect(setId ? `/collection?set=${setId}` : "/collection");
 }
 
 /**

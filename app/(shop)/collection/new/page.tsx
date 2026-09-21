@@ -2,13 +2,20 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { addCollectionItem } from "../actions";
 import { GRADING_SERVICES } from "@/lib/coins";
-import { getCoinTypes } from "@/lib/catalog";
-import { CatalogSelect } from "@/components/catalog-select";
+import { embeddedOne } from "@/lib/catalog";
+import { AddToSetField, type SetOption } from "@/components/add-to-set-field";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { Button } from "@/components/ui/button";
 
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
+
+type SetRow = { id: string; name: string; source_set_id: string | null };
+type MemberRow = {
+  collection_set_id: string;
+  sort_order: number | null;
+  coin_type: { id: string; name: string } | { id: string; name: string }[] | null;
+};
 
 function Field({
   label,
@@ -37,7 +44,10 @@ export default async function AddCollectionItemPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   let collectionId: string | null = null;
+  let setOptions: SetOption[] = [];
+
   if (user) {
     const { data: prof } = await supabase
       .from("profiles")
@@ -51,10 +61,46 @@ export default async function AddCollectionItemPage() {
         .eq("profile_id", prof.id)
         .maybeSingle();
       collectionId = col?.id ?? null;
+
+      if (collectionId) {
+        const { data: setRows } = await supabase
+          .from("collection_sets")
+          .select("id, name, source_set_id")
+          .eq("collection_id", collectionId)
+          .order("created_at", { ascending: true });
+        const sets = (setRows as SetRow[]) ?? [];
+
+        // For series sets, fetch their coin slots so the form can offer them.
+        const seriesIds = sets.filter((s) => s.source_set_id).map((s) => s.id);
+        const coinsBySet = new Map<string, { id: string; name: string }[]>();
+        if (seriesIds.length) {
+          const { data: memberRows } = await supabase
+            .from("collection_set_members")
+            .select("collection_set_id, sort_order, coin_type:coin_types(id, name)")
+            .in("collection_set_id", seriesIds);
+          const grouped = new Map<string, { ord: number; c: { id: string; name: string } }[]>();
+          for (const m of ((memberRows ?? []) as unknown as MemberRow[])) {
+            const ct = embeddedOne<{ id: string; name: string }>(m.coin_type);
+            if (!ct) continue;
+            const arr = grouped.get(m.collection_set_id) ?? [];
+            arr.push({ ord: m.sort_order ?? Number.POSITIVE_INFINITY, c: ct });
+            grouped.set(m.collection_set_id, arr);
+          }
+          for (const [sid, arr] of grouped) {
+            arr.sort((a, b) => a.ord - b.ord || a.c.name.localeCompare(b.c.name));
+            coinsBySet.set(sid, arr.map((x) => x.c));
+          }
+        }
+
+        setOptions = sets.map((s) => ({
+          id: s.id,
+          name: s.name,
+          kind: s.source_set_id ? "series" : "freeform",
+          coins: coinsBySet.get(s.id) ?? [],
+        }));
+      }
     }
   }
-
-  const coins = await getCoinTypes(supabase);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -67,8 +113,8 @@ export default async function AddCollectionItemPage() {
       </div>
       <h1 className="mt-1 text-2xl font-semibold">Add a coin you own</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Enter what you know. Link it to a catalog coin so it counts toward your
-        sets.
+        Enter what you know, and choose which set it belongs to. Adding it to a
+        checklist set marks that coin as owned.
       </p>
 
       <form action={addCollectionItem} className="mt-6 space-y-6">
@@ -86,21 +132,7 @@ export default async function AddCollectionItemPage() {
           />
         </Field>
 
-        {coins.length > 0 && (
-          <Field
-            label="Catalog coin"
-            name="coin_type_id"
-            hint="Optional — links this coin to the catalog so it fills your set grid."
-          >
-            <CatalogSelect
-              id="coin_type_id"
-              name="coin_type_id"
-              coins={coins}
-              className={inputCls}
-              blankLabel="— Not linked —"
-            />
-          </Field>
-        )}
+        <AddToSetField sets={setOptions} />
 
         <div className="space-y-2">
           <span className="text-sm font-medium">Photos</span>
