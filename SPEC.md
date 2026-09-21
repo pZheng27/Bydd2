@@ -208,12 +208,21 @@ collection item with matching `coin_type_id`. A slot is "filled" regardless
 of grade; grade targets only affect the want created from the gap.
 
 ### 6.2 Routing (`routeWant(want) → Request[]`)
+Routing is a **prediction**, not a database lookup. Dealers don't keep their
+unlisted back-stock in the app — anything they bother to upload, they list. So
+routing predicts which dealer most likely has the wanted coin in their
+(real-world, off-platform) unlisted inventory, using their **listings and
+profile as proxies**. A dealer who actually lists the exact coin is the one
+certain signal; the specialist/category signals carry the rest, since most
+wanted coins won't be listed by anyone.
+
 Score every dealer with `accepts_requests = true`:
 
-- +100: has inventory item with exact `coin_type_id`, grade within range,
-  status listed **or unlisted**
-- +60: exact `coin_type_id`, grade outside range by ≤ 5 points
-- +30: has ≥ 3 items in the same `series`
+- +100: **lists** an item with the exact `coin_type_id`, grade within range
+  (the sure thing — they have it)
+- +60: lists the exact `coin_type_id`, grade outside range by ≤ 5 points
+- +30: has ≥ 3 **listed** items in the same `series` (specialist → likely has
+  more of that series unlisted in the back) — the workhorse of the prediction
 - +20: `categories` includes the series' category
 - +0..15: `response_rate × 15`
 - −25: dealer already received ≥ 5 requests today (fatigue guard)
@@ -222,6 +231,10 @@ Score every dealer with `accepts_requests = true`:
 Send to the top 3 with score ≥ 20. Write a `requests` row per dealer and an
 `agent_events` row of kind `routed` with the full breakdown. If no dealer
 scores ≥ 20, leave the want open and record why.
+
+> **World coins (future).** The scoring above is tuned to U.S. series. Routing
+> world coins well will need more work — a world catalog and richer
+> series/category signals. Deferred; see `TODO.md`.
 
 Re-route when: a new inventory item matches an open want (immediate), or
 every 7 days for open wants with no offers.

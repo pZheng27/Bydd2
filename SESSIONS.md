@@ -215,18 +215,33 @@ gaps light up (unlocking routing and demand).
 
 ## Session 6 — Routing
 
-> Read CLAUDE.md and SPEC.md (§6.2). We're on Session 6. Implement `routeWant` in
-> `lib/domain/routing` exactly per §6.2 with unit tests for each scoring line, the
-> top-3 cutoff, the fatigue guard, and the "no dealer qualifies" case. Run it when
-> a want is created, when a new inventory item matches an open want, and weekly for
-> open wants with no offers. Write a `requests` row per dealer and a `routed`
-> agent event with the score breakdown. Send the request email via Resend. Fill in
-> `/dealer/requests` with real requests and the "you have N matching items" badge,
-> and build `/admin/routing`. Create three Demo Dealer accounts with different
-> inventory so I can test who gets what.
+> Read CLAUDE.md and SPEC.md (§6.2). We're on Session 6. **Routing is a
+> prediction**, not a lookup: dealers don't keep unlisted stock in the app, so we
+> predict who most likely has a wanted coin in their real-world back-stock from
+> their listings + profile (a live listing of the exact coin is the one certain
+> signal; the series-specialist and category signals carry the rest). Build in
+> three parts:
+>
+> **6a — engine.** `routeWant` in `lib/domain/routing` per §6.2 as a pure,
+> unit-tested function: a test for each scoring line (exact listed match +100 /
+> grade-off +60 / series specialist +30 / category +20 / response ≤ +15 / fatigue
+> −25 / prior decline −100), the top-3 ≥ 20 cutoff, and the "no dealer qualifies"
+> case. Add the `requests` table.
+>
+> **6b — fire it + inbox.** Run routing when a want is created, when a new
+> **listing** matches an open want, and weekly for open wants with no offers.
+> Write a `requests` row per dealer and a `routed` agent event with the score
+> breakdown. Fill `/dealer/requests` with real requests + the "you have N matching
+> items" badge, and let dealers accept/decline (a decline feeds the −100).
+>
+> **6c — email, admin, demo dealers.** Request email via Resend (fall back to the
+> in-app inbox if no key yet). Build `/admin/routing` to see every decision and
+> its reasoning. Create three Demo Dealer accounts with different **listed**
+> inventory + categories so I can test who gets what.
 
 What you should be able to do after: create a want and watch it arrive in the right
-dealers' inboxes, with the reasoning visible in admin.
+dealers' inboxes — including a specialist who never listed the coin — with the
+reasoning visible in admin.
 
 ---
 

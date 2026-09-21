@@ -3,6 +3,14 @@
 Ideas captured mid-build to pick up later, once the current session's work is
 done. Not yet slotted into a session in `SESSIONS.md`. Newest first.
 
+## Routing — world coins  · future (2026-09-21)
+
+Routing (Session 6) is tuned to U.S. series and the fixed dealer categories.
+Doing it well for **world coins** will need a world coin catalog and richer
+series/category signals, so the specialist/category prediction works outside
+U.S. series. Raised by the founder while defining S6; revisit after the U.S.
+routing pilot.
+
 ## Freeform sets — AI "Suggested" section  · not started (2026-09-18)
 
 For a **freeform set** (a set built without a catalog template — the kind you
