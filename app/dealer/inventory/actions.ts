@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { runRoutingForListedCoinType } from "@/lib/routing-run";
 import { sendChatMessage } from "@/app/dealer/inventory/chat-actions";
 
 function str(v: FormDataEntryValue | null): string | null {
@@ -144,7 +146,26 @@ export async function setItemListed(formData: FormData) {
     listed_at: listed ? new Date().toISOString() : null,
   };
   if (priceCents != null) update.price_cents = priceCents;
-  await supabase.from("inventory_items").update(update).eq("id", id);
+  const { data: item } = await supabase
+    .from("inventory_items")
+    .update(update)
+    .eq("id", id)
+    .select("coin_type_id")
+    .single();
+
+  // A newly listed coin may match open wants — re-route them so this dealer can
+  // surface (best-effort; never block the listing action).
+  if (listed && item?.coin_type_id) {
+    const admin = createAdminClient();
+    if (admin) {
+      try {
+        await runRoutingForListedCoinType(admin, item.coin_type_id);
+      } catch (e) {
+        console.error("re-route on list failed", e);
+      }
+    }
+  }
+
   redirect(listed ? `/dealer/inventory/${id}?listed=1` : `/dealer/inventory/${id}`);
 }
 

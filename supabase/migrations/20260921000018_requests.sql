@@ -50,6 +50,20 @@ create policy requests_owner_read on public.requests
     )
   );
 
+-- A dealer routed a request can read that want (for their inbox), even though
+-- wants are otherwise owner-only. Adds to the existing owner policy (OR'd).
+drop policy if exists wants_routed_dealer_read on public.wants;
+create policy wants_routed_dealer_read on public.wants
+  for select
+  using (
+    id in (
+      select r.want_id from public.requests r
+      join public.dealers d on d.id = r.dealer_id
+      join public.profiles p on p.id = d.profile_id
+      where p.user_id = auth.uid()
+    )
+  );
+
 drop trigger if exists requests_set_updated_at on public.requests;
 create trigger requests_set_updated_at
   before update on public.requests

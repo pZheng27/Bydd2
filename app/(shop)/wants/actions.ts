@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { runRoutingForWant } from "@/lib/routing-run";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 function str(v: FormDataEntryValue | null): string | null {
@@ -41,15 +43,33 @@ export async function addWant(formData: FormData) {
   const supabase = await createClient();
   const profileId = await myProfileId(supabase);
   if (!profileId) return;
-  await supabase.from("wants").insert({
-    profile_id: profileId,
-    coin_type_id: str(formData.get("coin_type_id")),
-    title: str(formData.get("title")) ?? "Untitled want",
-    grade_min: grade(formData.get("grade_min")),
-    grade_max: grade(formData.get("grade_max")),
-    budget_cents: toCents(formData.get("budget")),
-    notes: str(formData.get("notes")),
-  });
+  const { data: created } = await supabase
+    .from("wants")
+    .insert({
+      profile_id: profileId,
+      coin_type_id: str(formData.get("coin_type_id")),
+      title: str(formData.get("title")) ?? "Untitled want",
+      grade_min: grade(formData.get("grade_min")),
+      grade_max: grade(formData.get("grade_max")),
+      budget_cents: toCents(formData.get("budget")),
+      notes: str(formData.get("notes")),
+    })
+    .select("id")
+    .single();
+
+  // Route the new want to the dealers most likely to have it (best-effort; a
+  // routing hiccup must not break creating the want).
+  if (created) {
+    const admin = createAdminClient();
+    if (admin) {
+      try {
+        await runRoutingForWant(admin, created.id);
+      } catch (e) {
+        console.error("routing failed for want", created.id, e);
+      }
+    }
+  }
+
   redirect("/wants");
 }
 
