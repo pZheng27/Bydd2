@@ -1,15 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
-import { acceptOffer, declineOffer } from "@/app/dealer/offers/actions";
+import { acceptOffer, declineOffer, counterOffer } from "@/app/dealer/offers/actions";
 import { Button } from "@/components/ui/button";
 
 export default async function DealerOffersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ accepted?: string; error?: string }>;
+  searchParams: Promise<{ accepted?: string; countered?: string; error?: string }>;
 }) {
-  const { accepted, error } = await searchParams;
+  const { accepted, countered, error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -38,6 +38,11 @@ export default async function DealerOffersPage({
       {accepted && (
         <p className="mt-3 rounded-md bg-muted px-3 py-2 text-sm">
           Offer accepted ✓ — the sale is in your Orders.
+        </p>
+      )}
+      {countered && (
+        <p className="mt-3 rounded-md bg-muted px-3 py-2 text-sm">
+          Counter sent ✓ — the buyer will see your new price.
         </p>
       )}
       {error && (
@@ -89,7 +94,7 @@ export default async function DealerOffersPage({
                   </p>
                 )}
                 {pending && (
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <form action={acceptOffer}>
                       <input type="hidden" name="offer_id" value={o.id} />
                       <Button type="submit" size="sm">
@@ -100,6 +105,21 @@ export default async function DealerOffersPage({
                       <input type="hidden" name="offer_id" value={o.id} />
                       <Button type="submit" size="sm" variant="outline">
                         Decline
+                      </Button>
+                    </form>
+                    <form action={counterOffer} className="flex items-center gap-1.5">
+                      <input type="hidden" name="offer_id" value={o.id} />
+                      <span className="text-sm text-muted-foreground">or</span>
+                      <input
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Counter $"
+                        className="w-28 rounded-md border bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <Button type="submit" size="sm" variant="outline">
+                        Counter
                       </Button>
                     </form>
                   </div>

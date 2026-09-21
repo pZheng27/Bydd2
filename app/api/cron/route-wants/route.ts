@@ -1,8 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runRoutingForStaleWants } from "@/lib/routing-run";
+import { expireStaleOffers } from "@/lib/offers";
 
-// Weekly re-route: open wants going nowhere (no accepted request, nothing sent
-// in the last 7 days) get routed again — dealers' inventory and profiles change.
+// Daily marketplace maintenance: (1) expire offers past their 48-hour clock,
+// and (2) re-route open wants going nowhere (no accepted request, nothing sent
+// in the last 7 days). Folded into one cron to stay within Vercel's cron limit.
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
@@ -21,8 +23,9 @@ export async function GET(req: Request) {
   }
 
   try {
+    const { expired } = await expireStaleOffers(admin);
     const { routed } = await runRoutingForStaleWants(admin, 7);
-    return Response.json({ ok: true, routed });
+    return Response.json({ ok: true, expired, routed });
   } catch (e) {
     console.error("route-wants cron failed", e);
     return Response.json({ ok: false, error: String(e) }, { status: 500 });
