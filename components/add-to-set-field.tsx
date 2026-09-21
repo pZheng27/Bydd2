@@ -32,11 +32,14 @@ export function AddToSetField({ sets }: { sets: SetOption[] }) {
         <select
           id="collection_set_id"
           name="collection_set_id"
+          required
           value={setId}
           onChange={(e) => setSetId(e.target.value)}
           className={inputCls}
         >
-          <option value="">— None (just add to my collection) —</option>
+          <option value="" disabled>
+            — Select a set —
+          </option>
           {sets.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -44,11 +47,6 @@ export function AddToSetField({ sets }: { sets: SetOption[] }) {
             </option>
           ))}
         </select>
-        {sets.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            You have no sets yet — create one from My Collection first.
-          </p>
-        )}
       </div>
 
       {selected?.kind === "series" && (

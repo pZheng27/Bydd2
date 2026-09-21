@@ -113,10 +113,19 @@ export default async function AddCollectionItemPage() {
       </div>
       <h1 className="mt-1 text-2xl font-semibold">Add a coin you own</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Enter what you know, and choose which set it belongs to. Adding it to a
-        checklist set marks that coin as owned.
+        Every coin goes into one of your sets. Choose the set below — adding it to
+        a checklist set marks that coin as owned.
       </p>
 
+      {setOptions.length === 0 ? (
+        <div className="mt-8 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+          You need a set before you can add coins.{" "}
+          <Link href="/collection/sets/new" className="underline">
+            Create a set
+          </Link>{" "}
+          first.
+        </div>
+      ) : (
       <form action={addCollectionItem} className="mt-6 space-y-6">
         <Field
           label="Title"
@@ -199,6 +208,7 @@ export default async function AddCollectionItemPage() {
           <Button type="submit">Add to collection</Button>
         </div>
       </form>
+      )}
     </div>
   );
 }

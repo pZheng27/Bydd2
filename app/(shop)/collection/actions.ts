@@ -78,6 +78,8 @@ export async function addCollectionItem(formData: FormData) {
   const photos = formData.getAll("photos").map(String).filter(Boolean);
   const coinTypeId = str(formData.get("coin_type_id"));
   const setId = str(formData.get("collection_set_id"));
+  // A coin must be added to a set (enforced in the form too).
+  if (!setId) redirect("/collection/new");
 
   const { data: created } = await supabase
     .from("collection_items")
