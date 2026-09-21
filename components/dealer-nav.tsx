@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/dealer/profile", label: "Profile" },
   { href: "/dealer/offers", label: "Offers" },
   { href: "/dealer/requests", label: "Requests" },
+  { href: "/demand", label: "Demand" },
 ];
 
 /** Sub-navigation for the dealer (seller) area. */
