@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { routeWant, type Want, type DealerSignals } from "@/lib/domain/routing";
 import { seriesToCategory } from "@/lib/categories";
+import { embeddedOne } from "@/lib/catalog";
+import { sendEmail } from "@/lib/email";
 
 const startOfTodayISO = () => {
   const d = new Date();
@@ -50,7 +52,9 @@ export async function runRoutingForWant(
   // Candidate dealers: accept requests, and not the collector's own dealer.
   const { data: dealerRows } = await admin
     .from("dealers")
-    .select("id, profile_id, categories, response_rate, accepts_requests")
+    .select(
+      "id, profile_id, categories, response_rate, accepts_requests, profile:profiles(email)",
+    )
     .eq("accepts_requests", true);
   const dealers = (dealerRows ?? []).filter(
     (d) => d.profile_id !== want.profile_id,
@@ -135,6 +139,12 @@ export async function runRoutingForWant(
   const profileByDealer = new Map<string, string>(
     dealers.map((d) => [d.id as string, d.profile_id as string]),
   );
+  const emailByDealer = new Map<string, string | null>(
+    dealers.map((d) => [
+      d.id as string,
+      embeddedOne<{ email: string | null }>(d.profile)?.email ?? null,
+    ]),
+  );
   const coinLabel = want.title || series || "a coin";
 
   for (const req of result.requests) {
@@ -155,6 +165,14 @@ export async function runRoutingForWant(
           title: "A collector is looking for a coin",
           body: `Do you have ${coinLabel}? A collector is looking for one.`,
           link: "/dealer/requests",
+        });
+      }
+      const email = emailByDealer.get(req.dealerId);
+      if (email) {
+        await sendEmail({
+          to: email,
+          subject: "A collector is looking for a coin",
+          text: `Do you have ${coinLabel}? A collector on Bydd is looking for one — see it in your requests: /dealer/requests`,
         });
       }
     } else if (prior === "sent") {
