@@ -26,14 +26,11 @@ const STATUS_STYLES: Record<string, string> = {
   sold: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
 };
 
-function Panel({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="rounded-xl border p-4">
-      <div className="text-sm font-medium">{title}</div>
-      <p className="mt-1 text-sm text-muted-foreground">{note}</p>
-    </div>
-  );
-}
+type Demand = {
+  open_wants: number;
+  listed_supply: number;
+  median_budget_cents: number | null;
+};
 
 export default async function ItemDetailPage({
   params,
@@ -52,6 +49,15 @@ export default async function ItemDetailPage({
     .eq("id", id)
     .single();
   if (!item) notFound();
+
+  // Aggregate demand for this coin (needs a catalog link).
+  let demand: Demand | null = null;
+  if (item.coin_type_id) {
+    const { data: d } = await supabase.rpc("item_demand", {
+      p_coin_type_id: item.coin_type_id,
+    });
+    demand = (Array.isArray(d) ? d[0] : d) ?? null;
+  }
 
   const { data: rule } = await supabase
     .from("pricing_rules")
@@ -393,7 +399,37 @@ export default async function ItemDetailPage({
       </div>
 
       <div className="mt-4">
-        <Panel title="Demand" note="Open wants vs. supply arrives once collectors join." />
+        <div className="rounded-xl border p-4">
+          <div className="text-sm font-medium">Demand</div>
+          {!item.coin_type_id ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Link this coin to the catalog to see how wanted it is.
+            </p>
+          ) : demand && (demand.open_wants > 0 || demand.listed_supply > 0) ? (
+            <div className="mt-1 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {demand.open_wants}
+              </span>{" "}
+              open want{demand.open_wants === 1 ? "" : "s"} for this coin ·{" "}
+              <span className="font-medium text-foreground">
+                {demand.listed_supply}
+              </span>{" "}
+              listed marketplace-wide
+              {demand.median_budget_cents != null && (
+                <> · median budget {fmtMoney(demand.median_budget_cents)}</>
+              )}
+              {demand.open_wants > demand.listed_supply && (
+                <div className="mt-1 font-medium text-foreground">
+                  Demand exceeds supply — you could ask more.
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              No open wants for this coin yet.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

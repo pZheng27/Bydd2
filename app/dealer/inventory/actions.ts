@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runRoutingForListedCoinType } from "@/lib/routing-run";
+import { evaluateStandingOffersForCoinType } from "@/lib/standing-offers";
 import { sendChatMessage } from "@/app/dealer/inventory/chat-actions";
 
 function str(v: FormDataEntryValue | null): string | null {
@@ -160,8 +161,9 @@ export async function setItemListed(formData: FormData) {
     if (admin) {
       try {
         await runRoutingForListedCoinType(admin, item.coin_type_id);
+        await evaluateStandingOffersForCoinType(admin, item.coin_type_id);
       } catch (e) {
-        console.error("re-route on list failed", e);
+        console.error("re-route / standing-offer on list failed", e);
       }
     }
   }

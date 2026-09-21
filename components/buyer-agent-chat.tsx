@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import {
   sendBuyerMessage,
   confirmOffer,
+  confirmStandingOffer,
   type OfferProposal,
+  type StandingProposal,
 } from "@/app/(shop)/agent/actions";
 import { fmtMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ type Msg = {
   role: "user" | "assistant";
   content: string;
   proposal?: OfferProposal;
+  standingProposal?: StandingProposal;
   sent?: boolean;
 };
 
@@ -49,7 +52,12 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
       if (res.ok) {
         setMessages((m) => [
           ...m,
-          { role: "assistant", content: res.reply, proposal: res.proposal },
+          {
+            role: "assistant",
+            content: res.reply,
+            proposal: res.proposal,
+            standingProposal: res.standingProposal,
+          },
         ]);
       } else setError(res.error);
     } catch {
@@ -75,6 +83,29 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
       } else setError(res.error ?? "Couldn't send the offer.");
     } catch {
       setError("Couldn't send the offer.");
+    } finally {
+      setConfirming(null);
+    }
+  }
+
+  async function confirmStanding(idx: number, sp: StandingProposal) {
+    if (confirming !== null) return;
+    setConfirming(idx);
+    setError(null);
+    try {
+      const res = await confirmStandingOffer({
+        coinTypeId: sp.coinTypeId,
+        maxPriceCents: sp.maxPriceCents,
+        gradeMin: sp.gradeMin,
+        gradeMax: sp.gradeMax,
+        note: sp.note,
+      });
+      if (res.ok) {
+        setMessages((m) => m.map((mm, i) => (i === idx ? { ...mm, sent: true } : mm)));
+        router.refresh();
+      } else setError(res.error ?? "Couldn't set the standing offer.");
+    } catch {
+      setError("Couldn't set the standing offer.");
     } finally {
       setConfirming(null);
     }
@@ -145,6 +176,45 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
                       onClick={() => confirm(i, m.proposal!)}
                     >
                       {confirming === i ? "Sending…" : "Confirm & send"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            {m.standingProposal && (
+              <div className="mt-2 rounded-lg border bg-background p-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Standing offer to review
+                </div>
+                <div className="mt-1.5 text-sm">
+                  Auto-offer up to{" "}
+                  <span className="font-semibold">
+                    {fmtMoney(m.standingProposal.maxPriceCents)}
+                  </span>{" "}
+                  on <span className="font-medium">{m.standingProposal.coinName}</span>
+                  {(m.standingProposal.gradeMin != null ||
+                    m.standingProposal.gradeMax != null) && (
+                    <>
+                      {" "}
+                      (grade {m.standingProposal.gradeMin ?? "any"}–
+                      {m.standingProposal.gradeMax ?? "any"})
+                    </>
+                  )}{" "}
+                  whenever one lists.
+                </div>
+                <div className="mt-3">
+                  {m.sent ? (
+                    <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                      Standing offer set ✓
+                    </span>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={confirming !== null}
+                      onClick={() => confirmStanding(i, m.standingProposal!)}
+                    >
+                      {confirming === i ? "Setting…" : "Set up standing offer"}
                     </Button>
                   )}
                 </div>

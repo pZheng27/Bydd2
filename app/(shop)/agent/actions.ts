@@ -1,6 +1,7 @@
 "use server";
 
 import type Anthropic from "@anthropic-ai/sdk";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAnthropic, PRICING_MODEL } from "@/lib/anthropic";
 import { embeddedOne } from "@/lib/catalog";
@@ -21,8 +22,22 @@ export type OfferProposal = {
   note: string | null;
 };
 
+export type StandingProposal = {
+  coinTypeId: string;
+  coinName: string;
+  maxPriceCents: number;
+  gradeMin: number | null;
+  gradeMax: number | null;
+  note: string | null;
+};
+
 export type BuyerChatResult =
-  | { ok: true; reply: string; proposal?: OfferProposal }
+  | {
+      ok: true;
+      reply: string;
+      proposal?: OfferProposal;
+      standingProposal?: StandingProposal;
+    }
   | { ok: false; error: string };
 
 function usdToCents(v: unknown): number | null {
@@ -136,6 +151,29 @@ const PROPOSE_TOOL: Anthropic.Tool = {
   },
 };
 
+const STANDING_TOOL: Anthropic.Tool = {
+  name: "set_standing_offer",
+  description:
+    "Draft a STANDING offer for the collector to confirm: automatically offer on a coin whenever it's listed at or below a target price (optionally within a grade range). Use a coin_type_id from the gaps. Never activates on its own — the collector confirms.",
+  input_schema: {
+    type: "object",
+    properties: {
+      coin_type_id: { type: "string", description: "Catalog id of the coin (from the gaps)." },
+      max_price_usd: { type: "number", description: "Auto-offer when it lists at or below this (USD)." },
+      grade_min: { type: "number", description: "Optional minimum Sheldon grade (1–70)." },
+      grade_max: { type: "number", description: "Optional maximum Sheldon grade (1–70)." },
+      note: { type: "string", description: "Optional short note." },
+    },
+    required: ["coin_type_id", "max_price_usd"],
+    additionalProperties: false,
+  },
+};
+
+function gradeOrNull(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 && n <= 70 ? Math.round(n) : null;
+}
+
 type ListingRow = {
   id: string;
   title: string | null;
@@ -144,6 +182,41 @@ type ListingRow = {
   price_cents: number;
   dealer: { business_name: string | null; profile_id: string } | { business_name: string | null; profile_id: string }[] | null;
 };
+
+/** Resolve a set_standing_offer tool call into a proposal (never activates). */
+async function buildStandingProposal(
+  supabase: SupabaseClient,
+  input: Record<string, unknown>,
+): Promise<{ proposal: StandingProposal | null; summary: string }> {
+  const coinTypeId = typeof input.coin_type_id === "string" ? input.coin_type_id : null;
+  const maxCents = usdToCents(input.max_price_usd);
+  if (!coinTypeId || maxCents == null)
+    return { proposal: null, summary: "Need a coin and a valid target price." };
+  const { data: ct } = await supabase
+    .from("coin_types")
+    .select("name")
+    .eq("id", coinTypeId)
+    .maybeSingle();
+  if (!ct) return { proposal: null, summary: "That coin isn't in the catalog." };
+  const gradeMin = gradeOrNull(input.grade_min);
+  const gradeMax = gradeOrNull(input.grade_max);
+  const proposal: StandingProposal = {
+    coinTypeId,
+    coinName: ct.name,
+    maxPriceCents: maxCents,
+    gradeMin,
+    gradeMax,
+    note: typeof input.note === "string" ? input.note : null,
+  };
+  const gradeStr =
+    gradeMin != null || gradeMax != null
+      ? ` (grade ${gradeMin ?? "any"}–${gradeMax ?? "any"})`
+      : "";
+  return {
+    proposal,
+    summary: `Standing offer drafted: auto-offer up to ${fmtMoney(maxCents)} on ${ct.name}${gradeStr} whenever one lists. Awaiting the collector's confirmation.`,
+  };
+}
 
 async function searchListings(
   supabase: SupabaseClient,
@@ -239,9 +312,11 @@ ${gaps}
 What you can do:
 - search_listings — find coins for sale that fill a gap (search by coin_type_id from the gaps, or free text, with an optional budget).
 - propose_offer — draft an offer for the collector to CONFIRM. A single listing = one offer. Up to 5 listings of the SAME coin from different dealers = a PARALLEL offer: one price to all, the first dealer to accept wins and the rest cancel automatically.
+- set_standing_offer — draft a rule that auto-offers on a coin whenever it lists at or below a target price (optionally within a grade range). Best for gaps with NO current listing, so the collector doesn't have to keep watching.
 
 Rules:
-- You NEVER send an offer yourself. propose_offer only drafts it; the collector taps Confirm.
+- You NEVER send an offer yourself. propose_offer / set_standing_offer only draft; the collector taps Confirm.
+- A standing offer, once confirmed, fires on its own when a matching coin lists — reach for it when search_listings finds nothing for a gap.
 - Respect any budget the collector states; propose at or below it.
 - Recommend the next pieces to fill a set within their budget, matching gaps to real current listings (use search_listings — don't invent listings or prices).
 - Keep replies short, concrete, and in plain collector language. When you propose an offer, say briefly why (which gap it fills, the price vs. asking).`;
@@ -250,9 +325,10 @@ Rules:
     ...history.slice(-16).map((h) => ({ role: h.role, content: h.content })),
     { role: "user", content: text },
   ];
-  const tools = [SEARCH_TOOL, PROPOSE_TOOL];
+  const tools = [SEARCH_TOOL, PROPOSE_TOOL, STANDING_TOOL];
 
   let proposal: OfferProposal | undefined;
+  let standingProposal: StandingProposal | undefined;
   let finalText = "";
   try {
     for (let i = 0; i < 6; i++) {
@@ -282,6 +358,13 @@ Rules:
             );
             if (p) proposal = p;
             results.push({ type: "tool_result", tool_use_id: tu.id, content: summary });
+          } else if (tu.name === "set_standing_offer") {
+            const { proposal: sp, summary } = await buildStandingProposal(
+              supabase,
+              tu.input as Record<string, never>,
+            );
+            if (sp) standingProposal = sp;
+            results.push({ type: "tool_result", tool_use_id: tu.id, content: summary });
           } else {
             results.push({ type: "tool_result", tool_use_id: tu.id, content: "Unknown tool.", is_error: true });
           }
@@ -303,10 +386,11 @@ Rules:
   }
 
   if (!finalText)
-    finalText = proposal
-      ? "Here's an offer to review."
-      : "Sorry, I didn't catch that — could you rephrase?";
-  return { ok: true, reply: finalText, proposal };
+    finalText =
+      proposal || standingProposal
+        ? "Here's something to review."
+        : "Sorry, I didn't catch that — could you rephrase?";
+  return { ok: true, reply: finalText, proposal, standingProposal };
 }
 
 /**
@@ -352,4 +436,43 @@ export async function confirmOffer(input: {
   const { error } = await supabase.from("offers").insert(rows);
   if (error) return { ok: false, sent: 0, error: error.message };
   return { ok: true, sent: targets.length };
+}
+
+/** Activate a standing offer the collector confirmed. */
+export async function confirmStandingOffer(input: {
+  coinTypeId: string;
+  maxPriceCents: number;
+  gradeMin: number | null;
+  gradeMax: number | null;
+  note?: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const ctx = await myContext(supabase);
+  if (!ctx) return { ok: false, error: "Please sign in." };
+  const maxPriceCents = Math.round(input.maxPriceCents);
+  if (!input.coinTypeId || !Number.isFinite(maxPriceCents) || maxPriceCents <= 0)
+    return { ok: false, error: "Invalid standing offer." };
+
+  const { error } = await supabase.from("standing_offers").insert({
+    profile_id: ctx.profileId,
+    coin_type_id: input.coinTypeId,
+    max_price_cents: maxPriceCents,
+    grade_min: input.gradeMin,
+    grade_max: input.gradeMax,
+    note: input.note ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Cancel a standing offer (form action from the agent page). */
+export async function cancelStandingOffer(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase
+    .from("standing_offers")
+    .update({ status: "cancelled" })
+    .eq("id", id);
+  redirect("/agent");
 }
