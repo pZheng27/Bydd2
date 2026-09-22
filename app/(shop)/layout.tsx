@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { aiConfigured } from "@/lib/anthropic";
 import { AppHeader } from "@/components/app-header";
 import { CollectorNav } from "@/components/collector-nav";
+import { BuyerAgentWidget } from "@/components/buyer-agent-widget";
 
 export default async function CollectorLayout({
   children,
@@ -35,6 +37,7 @@ export default async function CollectorLayout({
       <AppHeader email={profile?.email ?? user.email ?? ""} />
       <CollectorNav />
       <main className="p-6">{children}</main>
+      <BuyerAgentWidget configured={aiConfigured()} />
     </div>
   );
 }

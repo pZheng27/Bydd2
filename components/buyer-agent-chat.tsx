@@ -112,7 +112,7 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
   }
 
   return (
-    <div className="mt-6 rounded-xl border p-4">
+    <div className="flex h-full flex-col">
       {!configured && (
         <div className="mb-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           The AI isn&apos;t configured yet. Add an <code>ANTHROPIC_API_KEY</code>{" "}
@@ -120,7 +120,7 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
         </div>
       )}
 
-      <div className="max-h-[28rem] space-y-3 overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
         {messages.length === 0 && configured && (
           <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
             Ask me what you&apos;re missing, to find coins that fill your gaps, or
@@ -232,42 +232,44 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
         <div ref={endRef} />
       </div>
 
-      {messages.length === 0 && configured && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => send(s)}
-              disabled={pending}
-              className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="mt-3 border-t pt-3">
+        {messages.length === 0 && configured && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => send(s)}
+                disabled={pending}
+                className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {error && <div className="mt-2 text-xs text-destructive">{error}</div>}
+        {error && <div className="mb-2 text-xs text-destructive">{error}</div>}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-        className="mt-3 flex gap-2"
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={!configured || pending}
-          placeholder="e.g. find me an 1893-CC Morgan under $8,000"
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-        />
-        <Button type="submit" size="sm" disabled={!configured || pending}>
-          Send
-        </Button>
-      </form>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send(input);
+          }}
+          className="flex gap-2"
+        >
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={!configured || pending}
+            placeholder="e.g. find me an 1893-CC Morgan under $8,000"
+            className="flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          />
+          <Button type="submit" size="sm" disabled={!configured || pending}>
+            Send
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

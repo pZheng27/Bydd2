@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney } from "@/lib/format";
+import { embeddedOne } from "@/lib/catalog";
 import { setWantStatus, deleteWant } from "./actions";
+import { cancelStandingOffer } from "@/app/(shop)/agent/actions";
 import { Button } from "@/components/ui/button";
 
 type Want = {
@@ -11,6 +13,13 @@ type Want = {
   grade_max: number | null;
   budget_cents: number | null;
   status: string;
+};
+type StandingRow = {
+  id: string;
+  max_price_cents: number;
+  grade_min: number | null;
+  grade_max: number | null;
+  coin_type: { name: string } | { name: string }[] | null;
 };
 
 function gradeText(min: number | null, max: number | null): string {
@@ -60,6 +69,7 @@ export default async function WantsPage() {
   } = await supabase.auth.getUser();
 
   let wants: Want[] = [];
+  let standing: StandingRow[] = [];
   if (user) {
     const { data: prof } = await supabase
       .from("profiles")
@@ -73,6 +83,13 @@ export default async function WantsPage() {
         .eq("profile_id", prof.id)
         .order("created_at", { ascending: false });
       wants = (data as Want[]) ?? [];
+
+      const { data: so } = await supabase
+        .from("standing_offers")
+        .select("id, max_price_cents, grade_min, grade_max, coin_type:coin_types(name)")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      standing = (so as StandingRow[]) ?? [];
     }
   }
 
@@ -152,6 +169,45 @@ export default async function WantsPage() {
         <div className="mt-6 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
           No wants yet. Click <span className="font-medium">Add a want</span> to
           describe a coin you&apos;re looking for.
+        </div>
+      )}
+
+      {standing.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold">Standing offers</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Set up with the buyer agent — these auto-offer when a matching coin
+            lists at or below your price.
+          </p>
+          <ul className="mt-2 divide-y rounded-xl border">
+            {standing.map((s) => {
+              const name = embeddedOne<{ name: string }>(s.coin_type)?.name ?? "a coin";
+              const grade =
+                s.grade_min != null || s.grade_max != null
+                  ? ` · grade ${s.grade_min ?? "any"}–${s.grade_max ?? "any"}`
+                  : "";
+              return (
+                <li
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
+                >
+                  <span>
+                    {name}{" "}
+                    <span className="text-muted-foreground">
+                      up to {fmtMoney(s.max_price_cents)}
+                      {grade}
+                    </span>
+                  </span>
+                  <form action={cancelStandingOffer}>
+                    <input type="hidden" name="id" value={s.id} />
+                    <button className="text-xs text-muted-foreground underline hover:text-destructive">
+                      Cancel
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

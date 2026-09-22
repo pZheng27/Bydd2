@@ -137,18 +137,14 @@ export default async function CollectorHubPage() {
         .
       </p>
 
-      {/* Buyer agent — the flagship shortcut */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-4">
-        <div>
-          <div className="font-medium">Buyer agent</div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Tell it what you&apos;re missing — it finds coins to fill your gaps
-            and drafts offers for you to confirm.
-          </p>
-        </div>
-        <Link href="/agent">
-          <Button>Open agent</Button>
-        </Link>
+      {/* Buyer agent — now a docked chat, bottom-right */}
+      <div className="mt-6 rounded-xl border bg-muted/30 p-4">
+        <div className="font-medium">Buyer agent</div>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Open the <span className="font-medium">💬 Buyer agent</span> chat in the
+          bottom-right corner anytime — tell it what you&apos;re missing and it
+          finds coins to fill your gaps and drafts offers for you to confirm.
+        </p>
       </div>
 
       {empty ? (

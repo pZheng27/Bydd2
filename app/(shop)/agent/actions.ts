@@ -474,5 +474,5 @@ export async function cancelStandingOffer(formData: FormData) {
     .from("standing_offers")
     .update({ status: "cancelled" })
     .eq("id", id);
-  redirect("/agent");
+  redirect("/wants");
 }
