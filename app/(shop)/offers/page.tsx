@@ -57,7 +57,9 @@ export default async function OffersPage({
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-semibold">Your offers</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Offers you&apos;ve sent, and counters from sellers to review.
+        Offers you&apos;ve sent, and counters from sellers to review. Accepting a
+        counter completes a <span className="font-medium">simulated</span>{" "}
+        purchase — no payment is taken.
       </p>
 
       {accepted && (

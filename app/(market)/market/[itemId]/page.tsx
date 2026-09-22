@@ -179,6 +179,10 @@ export default async function MarketItemPage({
               >
                 Looking for one like this? Add to wants
               </Link>
+
+              <p className="text-center text-xs text-muted-foreground">
+                Demo marketplace — checkout is simulated; no real payment is taken.
+              </p>
             </div>
           )}
 
