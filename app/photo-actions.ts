@@ -35,5 +35,5 @@ export async function composePhotos(
     background === "shadow" || /^#?[0-9a-fA-F]{6}$/.test(background ?? "")
       ? background
       : "shadow";
-  return compositeStoredPhotos(paths.filter(Boolean).slice(0, 2), bg);
+  return compositeStoredPhotos(paths.filter(Boolean).slice(0, 8), bg);
 }

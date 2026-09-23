@@ -85,15 +85,16 @@ export async function compositeStoredPhotos(
   const admin = createAdminClient();
   if (!admin) return null;
   try {
-    const [frontPath, backPath] = paths;
-    const front = await admin.storage.from(BUCKET).download(frontPath);
-    if (front.error || !front.data) return null;
     const form = new FormData();
-    form.append("front", front.data, "front");
-    if (backPath) {
-      const back = await admin.storage.from(BUCKET).download(backPath);
-      if (back.data) form.append("back", back.data, "back");
+    let n = 0;
+    for (const p of paths.slice(0, 8)) {
+      const dl = await admin.storage.from(BUCKET).download(p);
+      if (dl.data) {
+        form.append("files", dl.data, `photo-${n}`);
+        n += 1;
+      }
     }
+    if (n === 0) return null;
     form.append("background", background || "shadow");
     const res = await fetch(`${FORMATTER_URL}/composite`, {
       method: "POST",
@@ -106,7 +107,7 @@ export async function compositeStoredPhotos(
       image_png_base64?: string | null;
     };
     if (!out?.composited || !out.image_png_base64) return null;
-    return storePng(admin, folderOf(frontPath), out.image_png_base64);
+    return storePng(admin, folderOf(paths[0]), out.image_png_base64);
   } catch {
     return null;
   }
