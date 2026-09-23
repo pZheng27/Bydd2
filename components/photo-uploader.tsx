@@ -11,12 +11,12 @@ const SWATCHES = ["#ffffff", "#f4f4f5", "#111114", "#1e293b", "#3f3f46"];
 /**
  * Photo uploader with an in-form beautify + composite flow.
  *
- * Add any number of photos. Each has its own "Beautify" (background removal).
- * Pick a background — Plain (a solid colour, with swatches + a colour picker) or
- * Shadow (the studio look) — and "Create composite" combines the photos into one
- * product image shown to the right; toggling background/colour re-renders it. A
- * single photo (e.g. an already-composited front+back shot) can be processed on
- * its own the same way.
+ * Add any number of photos; each has its own "Beautify" (background removal).
+ * Pick a background — Plain (a solid colour, swatches + picker) or Shadow (the
+ * studio look) — and "Create composite" combines an obverse + reverse into one
+ * product image shown to the right. With more than two photos, a chooser asks
+ * which photo is the front (obverse) and which is the back (reverse). A single
+ * photo (e.g. an already-composited shot) is processed on its own.
  *
  * On submit: when a composite exists it is the listing's main photo followed by
  * the raw originals; otherwise each photo (beautified if it was) is submitted.
@@ -38,12 +38,31 @@ export function PhotoUploader({
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Obverse/reverse chooser, shown when compositing more than two photos.
+  const [picking, setPicking] = useState(false);
+  const [obvId, setObvId] = useState<string | null>(null);
+  const [revId, setRevId] = useState<string | null>(null);
 
   const urlOf = (path: string) =>
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
   const slotImg = (s: Slot) => urlOf(s.cutout ?? s.original);
   const disabled = busy !== null;
-  const srcPaths = () => slots.map((s) => s.cutout ?? s.original);
+
+  // The photos that go INTO the composite: all of them when there are 1-2, or
+  // the chosen obverse + reverse when there are more.
+  function compositeSlots(): Slot[] {
+    if (slots.length <= 2) return slots;
+    const o = slots.find((s) => s.id === obvId);
+    const r = slots.find((s) => s.id === revId);
+    return [o, r].filter((s): s is Slot => !!s);
+  }
+
+  function resetDerived() {
+    setComposite(null);
+    setPicking(false);
+    setObvId(null);
+    setRevId(null);
+  }
 
   async function upload(file: File): Promise<string | null> {
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -74,7 +93,7 @@ export function PhotoUploader({
             { id: crypto.randomUUID(), original: path, cutout: null },
           ]);
       }
-      setComposite(null); // sources changed
+      resetDerived();
     } finally {
       setBusy(null);
     }
@@ -108,11 +127,11 @@ export function PhotoUploader({
     if (slot?.original)
       supabase.storage.from("item-photos").remove([slot.original]);
     setSlots((prev) => prev.filter((s) => s.id !== id));
-    setComposite(null);
+    resetDerived();
   }
 
   async function makeComposite(nextBg?: "shadow" | "plain", nextColor?: string) {
-    const paths = srcPaths();
+    const paths = compositeSlots().map((s) => s.cutout ?? s.original);
     if (paths.length === 0) return;
     setBusy("compose");
     setError(null);
@@ -135,6 +154,18 @@ export function PhotoUploader({
     }
   }
 
+  // Main "Create composite" button: with >2 photos, open the obverse/reverse
+  // chooser first; otherwise composite straight away.
+  function onMainCompose() {
+    if (slots.length > 2) {
+      if (!obvId) setObvId(slots[0].id);
+      if (!revId) setRevId(slots[1].id);
+      setPicking(true);
+    } else {
+      makeComposite();
+    }
+  }
+
   function chooseBg(next: "shadow" | "plain") {
     setBg(next);
     if (composite) makeComposite(next, color);
@@ -148,13 +179,52 @@ export function PhotoUploader({
     ? [composite, ...slots.map((s) => s.original)]
     : slots.map((s) => s.cutout ?? s.original);
 
-  const composeLabel = busy === "compose"
-    ? "Working…"
-    : composite
-      ? "Update"
-      : slots.length > 1
-        ? "Create composite"
-        : "Apply background";
+  const composeLabel =
+    busy === "compose"
+      ? "Working…"
+      : composite
+        ? "Update composite"
+        : slots.length > 2
+          ? "Create composite…"
+          : slots.length > 1
+            ? "Create composite"
+            : "Apply background";
+
+  function roleRow(
+    selectedId: string | null,
+    otherId: string | null,
+    onPick: (id: string) => void,
+  ) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        {slots.map((s) => {
+          const selected = s.id === selectedId;
+          const isOther = s.id === otherId;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              disabled={disabled || isOther}
+              onClick={() => onPick(s.id)}
+              className={
+                "h-16 w-16 overflow-hidden rounded-md border " +
+                (selected ? "ring-2 ring-ring ring-offset-1 " : "") +
+                (isOther ? "opacity-30" : "hover:opacity-90")
+              }
+              aria-label={selected ? "Selected" : "Select this photo"}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={slotImg(s)}
+                alt=""
+                className="h-full w-full bg-muted object-contain"
+              />
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -281,14 +351,58 @@ export function PhotoUploader({
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => makeComposite()}
-                disabled={disabled}
-                className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
-              >
-                {composeLabel}
-              </button>
+              {!picking && (
+                <button
+                  type="button"
+                  onClick={onMainCompose}
+                  disabled={disabled}
+                  className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
+                >
+                  {composeLabel}
+                </button>
+              )}
+
+              {/* Obverse / reverse chooser (only with more than two photos) */}
+              {picking && (
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="text-sm font-medium">
+                    Which two sides go in the composite?
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-muted-foreground">
+                      Front (obverse)
+                    </div>
+                    {roleRow(obvId, revId, setObvId)}
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-muted-foreground">
+                      Back (reverse)
+                    </div>
+                    {roleRow(revId, obvId, setRevId)}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPicking(false);
+                        makeComposite();
+                      }}
+                      disabled={disabled || !obvId || !revId || obvId === revId}
+                      className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
+                    >
+                      {busy === "compose" ? "Working…" : "Create composite"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPicking(false)}
+                      disabled={disabled}
+                      className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
