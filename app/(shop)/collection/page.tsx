@@ -5,6 +5,7 @@ import { publicPhotoUrl } from "@/lib/photos";
 import { embeddedOne } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SetChecklist, type ChecklistTile } from "@/components/set-checklist";
 
 type CustomSet = { id: string; name: string; source_set_id: string | null };
 
@@ -326,6 +327,34 @@ async function SetGrid({
   const total = members.length;
   const pct = total ? Math.round((ownedCount / total) * 100) : 0;
 
+  const tiles: ChecklistTile[] = members.map((c) => {
+    const own = owned.get(c.id);
+    if (own) {
+      return {
+        id: c.id,
+        name: c.name,
+        owned: true,
+        photoUrl: own.photo ? publicPhotoUrl(own.photo) : null,
+        label: own.label,
+        itemHref: `/collection/${own.id}`,
+        wanted: false,
+        wantHref: "",
+      };
+    }
+    return {
+      id: c.id,
+      name: c.name,
+      owned: false,
+      photoUrl: null,
+      label: "",
+      itemHref: "",
+      wanted: wanted.has(c.id),
+      wantHref: wanted.has(c.id)
+        ? "/wants"
+        : `/wants/new?title=${encodeURIComponent(c.name)}&coin_type_id=${c.id}`,
+    };
+  });
+
   return (
     <div className="mt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -360,76 +389,7 @@ async function SetGrid({
           .
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {members.map((c) => {
-            const own = owned.get(c.id);
-            if (own) {
-              return (
-                <Link
-                  key={c.id}
-                  href={`/collection/${own.id}`}
-                  className="group overflow-hidden rounded-xl border transition-colors hover:bg-muted/40"
-                >
-                  <div className="relative">
-                    {own.photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={publicPhotoUrl(own.photo)}
-                        alt={c.name}
-                        className="aspect-square w-full bg-muted object-contain"
-                      />
-                    ) : (
-                      <div className="flex aspect-square w-full items-center justify-center bg-muted text-xs text-muted-foreground">
-                        No photo
-                      </div>
-                    )}
-                    <span className="absolute left-1.5 top-1.5 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                      ✓ Owned
-                    </span>
-                  </div>
-                  <div className="p-2">
-                    <div className="truncate text-xs font-medium">{c.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {own.label}
-                    </div>
-                  </div>
-                </Link>
-              );
-            }
-            return (
-              <div
-                key={c.id}
-                className="flex flex-col overflow-hidden rounded-xl border border-dashed"
-              >
-                <div className="flex aspect-square w-full items-center justify-center bg-muted/30 text-[11px] font-medium text-muted-foreground">
-                  Missing
-                </div>
-                <div className="flex flex-1 flex-col p-2">
-                  <div className="truncate text-xs font-medium text-muted-foreground">
-                    {c.name}
-                  </div>
-                  <div className="mt-auto pt-1.5">
-                    {wanted.has(c.id) ? (
-                      <Link
-                        href="/wants"
-                        className="text-[11px] font-medium text-muted-foreground underline"
-                      >
-                        On your wants ✓
-                      </Link>
-                    ) : (
-                      <Link
-                        href={`/wants/new?title=${encodeURIComponent(c.name)}&coin_type_id=${c.id}`}
-                        className="text-[11px] font-medium underline hover:text-foreground"
-                      >
-                        + Add to wants
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <SetChecklist tiles={tiles} ownedCount={ownedCount} total={total} />
       )}
     </div>
   );
