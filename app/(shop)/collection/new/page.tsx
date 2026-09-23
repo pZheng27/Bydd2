@@ -7,6 +7,10 @@ import { AddToSetField, type SetOption } from "@/components/add-to-set-field";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { Button } from "@/components/ui/button";
 
+// Photos are enhanced in the background after the coin is saved (see actions);
+// give the request room so the formatter round-trip can finish.
+export const maxDuration = 60;
+
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 

@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { enhanceItemPhotos, removeStoredPhotos } from "@/lib/enhance";
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = (v as string | null)?.trim();
@@ -114,6 +116,12 @@ export async function addCollectionItem(formData: FormData) {
     }
   }
 
+  // Prettify the uploaded photos in the background — never blocks the upload.
+  if (created && photos.length) {
+    const newId = created.id;
+    after(() => enhanceItemPhotos("collection_items", newId, photos));
+  }
+
   redirect(setId ? `/collection?set=${setId}` : "/collection");
 }
 
@@ -144,20 +152,25 @@ export async function linkCollectionItemToCatalog(formData: FormData) {
   redirect(`/collection/${id}`);
 }
 
-/** Remove a coin from the collection (and its photos). */
+/** Remove a coin from the collection and its photos (originals + enhanced). */
 export async function deleteCollectionItem(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
-  const { data: item } = await supabase
+  // Delete the row first — RLS ensures only the owner can — then clean up its
+  // stored photos only for a row that was actually removed.
+  const { data: deleted } = await supabase
     .from("collection_items")
-    .select("photos")
+    .delete()
     .eq("id", id)
-    .single();
-  if (item?.photos?.length) {
-    await supabase.storage.from("item-photos").remove(item.photos);
+    .select("*");
+  const row = deleted?.[0];
+  if (row) {
+    await removeStoredPhotos([
+      ...(row.photos ?? []),
+      ...(row.photos_original ?? []),
+    ]);
   }
-  await supabase.from("collection_items").delete().eq("id", id);
   redirect("/collection");
 }
 

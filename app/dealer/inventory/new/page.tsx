@@ -7,6 +7,10 @@ import { publicPhotoUrl } from "@/lib/photos";
 import { Button } from "@/components/ui/button";
 import { aiConfigured } from "@/lib/anthropic";
 
+// Photos are enhanced in the background after the item is saved (see actions);
+// give the request room so the formatter round-trip can finish.
+export const maxDuration = 60;
+
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 

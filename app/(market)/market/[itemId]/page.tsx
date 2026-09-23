@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney, gradeLabel } from "@/lib/format";
-import { publicPhotoUrl } from "@/lib/photos";
+import { CoinPhotos } from "@/components/coin-photos";
 import { toggleSave, makeOffer } from "@/app/(market)/actions";
 import { Button } from "@/components/ui/button";
 import { MessageSeller } from "@/components/message-seller";
@@ -81,31 +81,7 @@ export default async function MarketItemPage({
       </Link>
 
       <div className="mt-3 grid gap-6 sm:grid-cols-2">
-        <div className="space-y-3">
-          {photos[0] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={publicPhotoUrl(photos[0])}
-              alt=""
-              className="aspect-square w-full rounded-xl border bg-muted object-contain"
-            />
-          ) : (
-            <div className="aspect-square w-full rounded-xl border bg-muted" />
-          )}
-          {photos.length > 1 && (
-            <div className="grid grid-cols-4 gap-2">
-              {photos.slice(1).map((p) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={p}
-                  src={publicPhotoUrl(p)}
-                  alt=""
-                  className="aspect-square w-full rounded-md border bg-muted object-contain"
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <CoinPhotos photos={photos} original={item.photos_original ?? []} />
 
         <div>
           <h1 className="text-2xl font-semibold">{item.title || "Untitled coin"}</h1>

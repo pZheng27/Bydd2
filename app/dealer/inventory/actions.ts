@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enhanceItemPhotos, removeStoredPhotos } from "@/lib/enhance";
 import { runRoutingForListedCoinType } from "@/lib/routing-run";
 import { evaluateStandingOffersForCoinType } from "@/lib/standing-offers";
 import { sendChatMessage } from "@/app/dealer/inventory/chat-actions";
@@ -123,6 +125,12 @@ export async function addInventoryItem(formData: FormData) {
       .insert({ inventory_item_id: created.id, cost_cents: costCents });
   }
 
+  // Prettify the uploaded photos in the background — never blocks the upload.
+  if (created && photos.length) {
+    const newId = created.id;
+    after(() => enhanceItemPhotos("inventory_items", newId, photos));
+  }
+
   // If the dealer gave pricing instructions, let the assistant set up the rule
   // now (best-effort) and drop them on the item page to see the result.
   if (created && pricingInstructions) {
@@ -184,19 +192,24 @@ export async function setItemPrice(formData: FormData) {
   redirect(`/dealer/inventory/${id}`);
 }
 
-/** Permanently delete an item and its photos. */
+/** Permanently delete an item and its photos (originals + enhanced). */
 export async function deleteItem(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
-  const { data: item } = await supabase
+  // Delete the row first — RLS ensures only the owner can — then clean up its
+  // stored photos only for a row that was actually removed.
+  const { data: deleted } = await supabase
     .from("inventory_items")
-    .select("photos")
+    .delete()
     .eq("id", id)
-    .single();
-  if (item?.photos?.length) {
-    await supabase.storage.from("item-photos").remove(item.photos);
+    .select("*");
+  const row = deleted?.[0];
+  if (row) {
+    await removeStoredPhotos([
+      ...(row.photos ?? []),
+      ...(row.photos_original ?? []),
+    ]);
   }
-  await supabase.from("inventory_items").delete().eq("id", id);
   redirect("/dealer/inventory");
 }
