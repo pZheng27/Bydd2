@@ -7,8 +7,8 @@ import { publicPhotoUrl } from "@/lib/photos";
 import { Button } from "@/components/ui/button";
 import { aiConfigured } from "@/lib/anthropic";
 
-// Photos are enhanced in the background after the item is saved (see actions);
-// give the request room so the formatter round-trip can finish.
+// The uploader enhances a photo on demand via a server action; give the
+// request room for the formatter round-trip.
 export const maxDuration = 60;
 
 const inputCls =
@@ -41,6 +41,7 @@ type CollectionItem = {
   title: string | null;
   notes: string | null;
   photos: string[] | null;
+  photos_original: string[] | null;
   grading_service: string | null;
   cert_number: string | null;
   acquired_price_cents: number | null;
@@ -81,13 +82,18 @@ export default async function AddInventoryItemPage({
     const { data } = await supabase
       .from("collection_items")
       .select(
-        "id, title, notes, photos, grading_service, cert_number, acquired_price_cents, grade, designation, metal, fine_weight_oz, series, year, mintmark, variety, coin_type_id",
+        "id, title, notes, photos, photos_original, grading_service, cert_number, acquired_price_cents, grade, designation, metal, fine_weight_oz, series, year, mintmark, variety, coin_type_id",
       )
       .eq("id", from)
       .maybeSingle();
     ci = (data as CollectionItem) ?? null;
   }
   const prefillPhotos: string[] = ci?.photos ?? [];
+  const prefillOriginals: string[] = ci?.photos_original ?? [];
+  const prefillMap: Record<string, string> = {};
+  prefillPhotos.forEach((p, i) => {
+    if (prefillOriginals[i]) prefillMap[p] = prefillOriginals[i];
+  });
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -160,6 +166,13 @@ export default async function AddInventoryItemPage({
           <span className="text-sm font-medium">Photos</span>
           {prefillPhotos.length > 0 && (
             <div className="flex flex-wrap gap-3">
+              {Object.keys(prefillMap).length > 0 && (
+                <input
+                  type="hidden"
+                  name="photo_originals_map"
+                  value={JSON.stringify(prefillMap)}
+                />
+              )}
               {prefillPhotos.map((p) => (
                 <div key={p}>
                   <input type="hidden" name="photos" value={p} />
@@ -167,7 +180,7 @@ export default async function AddInventoryItemPage({
                   <img
                     src={publicPhotoUrl(p)}
                     alt=""
-                    className="h-24 w-24 rounded-md border object-cover"
+                    className="h-24 w-24 rounded-md border object-contain"
                   />
                 </div>
               ))}

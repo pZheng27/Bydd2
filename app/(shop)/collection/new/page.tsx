@@ -7,8 +7,8 @@ import { AddToSetField, type SetOption } from "@/components/add-to-set-field";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { Button } from "@/components/ui/button";
 
-// Photos are enhanced in the background after the coin is saved (see actions);
-// give the request room so the formatter round-trip can finish.
+// The uploader enhances a photo on demand via a server action; give the
+// request room for the formatter round-trip.
 export const maxDuration = 60;
 
 const inputCls =

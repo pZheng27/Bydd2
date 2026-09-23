@@ -1,10 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { enhanceItemPhotos, removeStoredPhotos } from "@/lib/enhance";
+import { readPhotosOriginal, removeStoredPhotos } from "@/lib/enhance";
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = (v as string | null)?.trim();
@@ -78,6 +77,10 @@ export async function addCollectionItem(formData: FormData) {
   const gradeVal =
     grade != null && grade >= 1 && grade <= 70 ? Math.round(grade) : null;
   const photos = formData.getAll("photos").map(String).filter(Boolean);
+  const photosOriginal = readPhotosOriginal(
+    photos,
+    formData.getAll("photo_originals_map").map(String),
+  );
   const coinTypeId = str(formData.get("coin_type_id"));
   const setId = str(formData.get("collection_set_id"));
   // A coin must be added to a set (enforced in the form too).
@@ -96,6 +99,7 @@ export async function addCollectionItem(formData: FormData) {
       notes: str(formData.get("notes")),
       acquired_price_cents: toCents(formData.get("acquired_price")),
       photos,
+      photos_original: photosOriginal,
     })
     .select("id")
     .single();
@@ -114,12 +118,6 @@ export async function addCollectionItem(formData: FormData) {
         .from("collection_set_coins")
         .insert({ collection_set_id: setId, collection_item_id: created.id });
     }
-  }
-
-  // Prettify the uploaded photos in the background — never blocks the upload.
-  if (created && photos.length) {
-    const newId = created.id;
-    after(() => enhanceItemPhotos("collection_items", newId, photos));
   }
 
   redirect(setId ? `/collection?set=${setId}` : "/collection");

@@ -16,8 +16,6 @@ const FORMATTER_URL = process.env.FORMATTER_URL;
 const FORMATTER_API_KEY = process.env.FORMATTER_API_KEY;
 const PRESET = process.env.FORMATTER_PRESET || "dark_gradient";
 
-type Table = "inventory_items" | "collection_items";
-
 /** Whether the formatter service is wired up (URL + key present). */
 export function formatterConfigured(): boolean {
   return !!FORMATTER_URL && !!FORMATTER_API_KEY;
@@ -73,47 +71,37 @@ async function enhanceOne(
 }
 
 /**
- * Prettify every photo on a freshly-created row, in the background.
- *
- * `photos` starts as the raw uploads. For each one the formatter enhances, the
- * enhanced path is swapped into `photos` and the raw path recorded in
- * `photos_original` (index-aligned); photos it can't enhance stay put with an
- * empty original slot. If nothing changed, the row is left untouched. Safe to
- * call from `after()`: it never throws.
+ * Enhance a single already-uploaded photo (by its storage path), on demand.
+ * Returns the new enhanced object path, or null when it can't/shouldn't be
+ * enhanced (formatter off, a slabbed coin the service refuses, or any error).
+ * Never throws.
  */
-export async function enhanceItemPhotos(
-  table: Table,
-  id: string,
-  photos: string[],
-): Promise<void> {
-  if (!formatterConfigured() || photos.length === 0) return;
+export async function enhanceStoredPhoto(path: string): Promise<string | null> {
+  if (!formatterConfigured() || !path) return null;
   const admin = createAdminClient();
-  if (!admin) return;
+  if (!admin) return null;
+  return enhanceOne(admin, path);
+}
 
-  try {
-    const display: string[] = [];
-    const original: string[] = [];
-    let changed = false;
-    for (const path of photos) {
-      const enhanced = await enhanceOne(admin, path);
-      if (enhanced) {
-        display.push(enhanced);
-        original.push(path);
-        changed = true;
-      } else {
-        display.push(path);
-        original.push(""); // photos[i] is itself the raw upload
-      }
+/**
+ * Build the index-aligned `photos_original` array from the display paths a form
+ * submitted plus its `photo_originals_map` field(s) — JSON objects mapping a
+ * display path to the raw original kept for the "view original" toggle. A
+ * display path with no mapping (never enhanced) gets an empty string.
+ */
+export function readPhotosOriginal(
+  displayPaths: string[],
+  mapValues: string[],
+): string[] {
+  const merged: Record<string, string> = {};
+  for (const m of mapValues) {
+    try {
+      Object.assign(merged, JSON.parse(m));
+    } catch {
+      /* ignore malformed map */
     }
-    if (!changed) return;
-
-    await admin
-      .from(table)
-      .update({ photos: display, photos_original: original })
-      .eq("id", id);
-  } catch {
-    /* best-effort: leave the row's original photos in place */
   }
+  return displayPaths.map((p) => merged[p] ?? "");
 }
 
 /**

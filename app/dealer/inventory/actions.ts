@@ -1,10 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { enhanceItemPhotos, removeStoredPhotos } from "@/lib/enhance";
+import { readPhotosOriginal, removeStoredPhotos } from "@/lib/enhance";
 import { runRoutingForListedCoinType } from "@/lib/routing-run";
 import { evaluateStandingOffersForCoinType } from "@/lib/standing-offers";
 import { sendChatMessage } from "@/app/dealer/inventory/chat-actions";
@@ -67,6 +66,10 @@ export async function addInventoryItem(formData: FormData) {
   const shippingNote = str(formData.get("shipping_note"));
   const pricingInstructions = str(formData.get("pricing_instructions"));
   const photos = formData.getAll("photos").map(String).filter(Boolean);
+  const photosOriginal = readPhotosOriginal(
+    photos,
+    formData.getAll("photo_originals_map").map(String),
+  );
 
   // Structured fields — carried over as hidden inputs when listing from a
   // collection item, so nothing is lost. Absent on a normal manual upload.
@@ -94,6 +97,7 @@ export async function addInventoryItem(formData: FormData) {
       description,
       shipping_note: shippingNote,
       photos,
+      photos_original: photosOriginal,
       grade: gradeVal,
       designation,
       metal,
@@ -123,12 +127,6 @@ export async function addInventoryItem(formData: FormData) {
     await supabase
       .from("inventory_costs")
       .insert({ inventory_item_id: created.id, cost_cents: costCents });
-  }
-
-  // Prettify the uploaded photos in the background — never blocks the upload.
-  if (created && photos.length) {
-    const newId = created.id;
-    after(() => enhanceItemPhotos("inventory_items", newId, photos));
   }
 
   // If the dealer gave pricing instructions, let the assistant set up the rule
