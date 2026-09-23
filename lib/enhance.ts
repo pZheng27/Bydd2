@@ -3,91 +3,120 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Enhanced coin photos: send each uploaded photo to the Numismatic Photo
-// Formatter (a small HTTP service), store the prettified PNG next to the
-// original, and swap it into `photos` so it shows by default. The raw upload is
-// kept in `photos_original` for the "view original" toggle. All of this is
-// best-effort and runs in the background (via `after()`), so it never blocks or
-// breaks an upload — a coin whose photo can't be enhanced simply keeps its
-// original.
+// Coin photo enhancement, backed by the Numismatic Photo Formatter HTTP service.
+// Two on-demand operations the upload form calls:
+//   - cutoutStoredPhoto  ("beautify")     -> remove a photo's background
+//   - compositeStoredPhotos ("composite") -> combine 1-2 photos on a backdrop
+// Both download the source from storage, call the formatter, and store the
+// result back in the same bucket. Best-effort: they never throw, returning null
+// when the formatter is off, refuses a slab, or errors — the caller keeps the
+// original photo in that case.
 
 const BUCKET = "item-photos";
 const FORMATTER_URL = process.env.FORMATTER_URL;
 const FORMATTER_API_KEY = process.env.FORMATTER_API_KEY;
-const PRESET = process.env.FORMATTER_PRESET || "dark_gradient";
 
 /** Whether the formatter service is wired up (URL + key present). */
 export function formatterConfigured(): boolean {
   return !!FORMATTER_URL && !!FORMATTER_API_KEY;
 }
 
-/**
- * Enhance one stored photo. Returns the new enhanced object path, or null when
- * it can't/shouldn't be enhanced (formatter off, a slabbed coin the service
- * refuses, or any error). Never throws.
- */
-async function enhanceOne(
-  admin: SupabaseClient,
-  path: string,
-): Promise<string | null> {
-  try {
-    // 1. Pull the raw original bytes straight from storage.
-    const { data: blob, error: dlErr } = await admin.storage
-      .from(BUCKET)
-      .download(path);
-    if (dlErr || !blob) return null;
+function folderOf(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "misc";
+}
 
-    // 2. Ask the formatter to prettify it.
+/** Store a base64 PNG next to `folder`; returns its object path or null. */
+async function storePng(
+  admin: SupabaseClient,
+  folder: string,
+  base64: string,
+): Promise<string | null> {
+  const outPath = `${folder}/${randomUUID()}.png`;
+  const { error } = await admin.storage
+    .from(BUCKET)
+    .upload(outPath, Buffer.from(base64, "base64"), {
+      contentType: "image/png",
+      upsert: false,
+    });
+  return error ? null : outPath;
+}
+
+/**
+ * Beautify: remove the background from a stored photo. Returns the new
+ * transparent-PNG object path, or null (formatter off, a slabbed coin the
+ * service refuses, or any error). Never throws.
+ */
+export async function cutoutStoredPhoto(path: string): Promise<string | null> {
+  if (!formatterConfigured() || !path) return null;
+  const admin = createAdminClient();
+  if (!admin) return null;
+  try {
+    const { data: blob, error } = await admin.storage.from(BUCKET).download(path);
+    if (error || !blob) return null;
     const form = new FormData();
     form.append("file", blob, "coin");
-    form.append("preset", PRESET);
-    const res = await fetch(`${FORMATTER_URL}/format`, {
+    const res = await fetch(`${FORMATTER_URL}/cutout`, {
       method: "POST",
       headers: { "X-API-Key": FORMATTER_API_KEY as string },
       body: form,
     });
     if (!res.ok) return null;
     const out = (await res.json()) as {
-      formatted?: boolean;
+      cut_out?: boolean;
       image_png_base64?: string | null;
     };
-    // Slabbed coins come back formatted:false with no image — keep the original.
-    if (!out?.formatted || !out.image_png_base64) return null;
-
-    // 3. Store the enhanced PNG alongside the original (same folder).
-    const folder = path.includes("/")
-      ? path.slice(0, path.lastIndexOf("/"))
-      : "misc";
-    const enhancedPath = `${folder}/${randomUUID()}.enhanced.png`;
-    const bytes = Buffer.from(out.image_png_base64, "base64");
-    const { error: upErr } = await admin.storage
-      .from(BUCKET)
-      .upload(enhancedPath, bytes, { contentType: "image/png", upsert: false });
-    if (upErr) return null;
-    return enhancedPath;
+    if (!out?.cut_out || !out.image_png_base64) return null;
+    return storePng(admin, folderOf(path), out.image_png_base64);
   } catch {
     return null;
   }
 }
 
 /**
- * Enhance a single already-uploaded photo (by its storage path), on demand.
- * Returns the new enhanced object path, or null when it can't/shouldn't be
- * enhanced (formatter off, a slabbed coin the service refuses, or any error).
- * Never throws.
+ * Composite one or two stored photos (front[, back]) onto a background —
+ * "shadow" (the studio look) or a solid "#RRGGBB". Returns the new PNG object
+ * path, or null on any failure. Never throws.
  */
-export async function enhanceStoredPhoto(path: string): Promise<string | null> {
-  if (!formatterConfigured() || !path) return null;
+export async function compositeStoredPhotos(
+  paths: string[],
+  background: string,
+): Promise<string | null> {
+  if (!formatterConfigured() || paths.length === 0) return null;
   const admin = createAdminClient();
   if (!admin) return null;
-  return enhanceOne(admin, path);
+  try {
+    const [frontPath, backPath] = paths;
+    const front = await admin.storage.from(BUCKET).download(frontPath);
+    if (front.error || !front.data) return null;
+    const form = new FormData();
+    form.append("front", front.data, "front");
+    if (backPath) {
+      const back = await admin.storage.from(BUCKET).download(backPath);
+      if (back.data) form.append("back", back.data, "back");
+    }
+    form.append("background", background || "shadow");
+    const res = await fetch(`${FORMATTER_URL}/composite`, {
+      method: "POST",
+      headers: { "X-API-Key": FORMATTER_API_KEY as string },
+      body: form,
+    });
+    if (!res.ok) return null;
+    const out = (await res.json()) as {
+      composited?: boolean;
+      image_png_base64?: string | null;
+    };
+    if (!out?.composited || !out.image_png_base64) return null;
+    return storePng(admin, folderOf(frontPath), out.image_png_base64);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Build the index-aligned `photos_original` array from the display paths a form
  * submitted plus its `photo_originals_map` field(s) — JSON objects mapping a
  * display path to the raw original kept for the "view original" toggle. A
- * display path with no mapping (never enhanced) gets an empty string.
+ * display path with no mapping gets an empty string.
  */
 export function readPhotosOriginal(
   displayPaths: string[],
@@ -105,10 +134,9 @@ export function readPhotosOriginal(
 }
 
 /**
- * Delete stored photo objects (originals + enhanced) using the service-role
- * client, so it can also remove enhanced files the formatter created (which
- * have no user owner). Caller must have already verified ownership — pass only
- * paths from a row the user was allowed to delete. No-op on empty; never throws.
+ * Delete stored photo objects using the service-role client, so it can also
+ * remove enhanced/composite files the formatter created (which have no user
+ * owner). Caller must have verified ownership. No-op on empty; never throws.
  */
 export async function removeStoredPhotos(paths: string[]): Promise<void> {
   const clean = paths.filter(Boolean);

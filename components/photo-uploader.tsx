@@ -1,25 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { enhanceUploadedPhoto } from "@/app/photo-actions";
+import { beautifyPhoto, composePhotos } from "@/app/photo-actions";
+
+type Slot = { original: string; cutout: string | null };
+
+const SWATCHES = ["#ffffff", "#f4f4f5", "#111114", "#1e293b", "#3f3f46"];
 
 /**
- * Single-photo uploader with an in-form enhancement step.
+ * Photo uploader with an in-form beautify + composite flow.
  *
- * Flow: the seller adds a photo (shown as the original) → optionally clicks
- * "Enhance photo", which sends it to the formatter and shows the prettified
- * result → they can toggle between Enhanced and Original to decide what buyers
- * see → then submit. Whatever is selected becomes the listing's display photo;
- * if that's the enhanced one, the raw original is kept so the listing offers a
- * "view original" toggle too.
+ * Flow: add a front (and optional back) photo → "Beautify" removes the
+ * background on each → pick a background (Plain solid colour, or the Shadow
+ * studio look) → "Create composite" combines them into one product image;
+ * toggling Plain/Shadow or the colour re-renders it live. On submit the
+ * composite is the listing's main photo and the untouched originals are kept
+ * alongside it as gallery photos.
  *
- * Emits into the surrounding form:
- *   - name="photos"              → the chosen display path
- *   - name="photo_originals_map" → JSON { [displayPath]: rawPath }, only when
- *     the enhanced photo is the chosen display
- *
- * One photo for now — obverse/reverse comes later.
+ * Emits name="photos" hidden inputs: the composite first (when made), then the
+ * raw originals.
  */
 export function PhotoUploader({
   dealerId,
@@ -31,165 +31,290 @@ export function PhotoUploader({
   const folder = prefix ?? dealerId ?? "misc";
   const supabase = createClient();
 
-  const [original, setOriginal] = useState<string | null>(null);
-  const [enhanced, setEnhanced] = useState<string | null>(null);
-  const [choice, setChoice] = useState<"original" | "enhanced">("original");
-  const [busy, setBusy] = useState<null | "upload" | "enhance">(null);
+  const [front, setFront] = useState<Slot | null>(null);
+  const [back, setBack] = useState<Slot | null>(null);
+  const [composite, setComposite] = useState<string | null>(null);
+  const [bg, setBg] = useState<"shadow" | "plain">("shadow");
+  const [color, setColor] = useState("#ffffff");
+  const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const urlOf = (path: string) =>
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
+  const slotImg = (s: Slot) => urlOf(s.cutout ?? s.original);
+  const beautified = !!(front?.cutout || back?.cutout);
+  const disabled = busy !== null;
 
-  const displayPath = choice === "enhanced" && enhanced ? enhanced : original;
-  const showToggle = !!enhanced && !!original;
+  // Paths sent to the composite endpoint: the cutout when beautified, else the
+  // raw original (the endpoint beautifies raw inputs itself).
+  function srcPaths(): string[] {
+    const p: string[] = [];
+    if (front) p.push(front.cutout ?? front.original);
+    if (back) p.push(back.cutout ?? back.original);
+    return p;
+  }
 
-  async function onSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  async function upload(file: File): Promise<string | null> {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from("item-photos")
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (upErr) {
+      setError(upErr.message);
+      return null;
+    }
+    return path;
+  }
+
+  async function onSelect(
+    which: "front" | "back",
+    e: ChangeEvent<HTMLInputElement>,
+  ) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    setBusy("upload");
+    setBusy(`upload-${which}`);
     setError(null);
     setNote(null);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${folder}/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("item-photos")
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (upErr) {
-        setError(upErr.message);
-        return;
-      }
-      setOriginal(path);
-      setEnhanced(null);
-      setChoice("original");
+      const path = await upload(file);
+      if (!path) return;
+      const slot: Slot = { original: path, cutout: null };
+      if (which === "front") setFront(slot);
+      else setBack(slot);
+      setComposite(null); // sources changed — any existing composite is stale
     } finally {
       setBusy(null);
     }
   }
 
-  async function onEnhance() {
-    if (!original) return;
-    setBusy("enhance");
+  async function onBeautify() {
+    setBusy("beautify");
     setError(null);
     setNote(null);
     try {
-      const result = await enhanceUploadedPhoto(original);
-      if (result) {
-        setEnhanced(result);
-        setChoice("enhanced");
-      } else {
+      let anyFail = false;
+      if (front) {
+        const c = await beautifyPhoto(front.original);
+        if (c) setFront({ ...front, cutout: c });
+        else anyFail = true;
+      }
+      if (back) {
+        const c = await beautifyPhoto(back.original);
+        if (c) setBack({ ...back, cutout: c });
+        else anyFail = true;
+      }
+      setComposite(null);
+      if (anyFail)
         setNote(
-          "Couldn't enhance this one — it may be a slabbed coin (kept in its holder) or the enhancer is unavailable. Your original photo will be used.",
+          "One or more photos couldn't be beautified — a slabbed coin is kept in its holder. You can still create a composite from the originals.",
         );
-      }
-    } catch {
-      setError("Enhancement failed — your original photo will be used.");
     } finally {
       setBusy(null);
     }
   }
 
-  function onRemove() {
-    // Best-effort: drop the raw original (owned by this user). An enhanced copy,
-    // if any, is left in storage.
-    if (original) supabase.storage.from("item-photos").remove([original]);
-    setOriginal(null);
-    setEnhanced(null);
-    setChoice("original");
-    setNote(null);
+  async function makeComposite(nextBg?: "shadow" | "plain", nextColor?: string) {
+    const paths = srcPaths();
+    if (paths.length === 0) return;
+    setBusy("compose");
     setError(null);
+    setNote(null);
+    try {
+      const useBg = nextBg ?? bg;
+      const useColor = nextColor ?? color;
+      const result = await composePhotos(
+        paths,
+        useBg === "shadow" ? "shadow" : useColor,
+      );
+      if (result) {
+        setComposite(result);
+      } else {
+        setComposite(null);
+        setError("Couldn't create the composite. Please try again.");
+      }
+    } finally {
+      setBusy(null);
+    }
   }
+
+  function chooseBg(next: "shadow" | "plain") {
+    setBg(next);
+    if (composite) makeComposite(next, color);
+  }
+  function chooseColor(next: string) {
+    setColor(next);
+    if (composite && bg === "plain") makeComposite("plain", next);
+  }
+
+  function removeSlot(which: "front" | "back") {
+    const s = which === "front" ? front : back;
+    if (s?.original) supabase.storage.from("item-photos").remove([s.original]);
+    if (which === "front") setFront(null);
+    else setBack(null);
+    setComposite(null);
+  }
+
+  // The composite (if made) is the hero; raw originals follow so buyers can
+  // still see each true-colour side.
+  const submitPhotos: string[] = [];
+  if (composite) submitPhotos.push(composite);
+  if (front) submitPhotos.push(front.original);
+  if (back) submitPhotos.push(back.original);
 
   return (
-    <div className="space-y-3">
-      {displayPath && (
-        <>
-          <input type="hidden" name="photos" value={displayPath} />
-          {choice === "enhanced" && enhanced && original && (
-            <input
-              type="hidden"
-              name="photo_originals_map"
-              value={JSON.stringify({ [enhanced]: original })}
-            />
-          )}
-        </>
-      )}
+    <div className="space-y-4">
+      {submitPhotos.map((p, i) => (
+        <input key={`${p}-${i}`} type="hidden" name="photos" value={p} />
+      ))}
 
-      {!original ? (
-        <label className="flex h-40 w-full max-w-sm cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground hover:bg-muted">
-          {busy === "upload" ? "Uploading…" : "+ Add a photo"}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onSelect}
-            disabled={busy !== null}
-          />
-        </label>
-      ) : (
-        <div className="space-y-3">
-          <div className="relative w-full max-w-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={urlOf(displayPath as string)}
-              alt=""
-              className="aspect-square w-full rounded-lg border bg-muted object-contain"
-            />
-            <button
-              type="button"
-              onClick={onRemove}
-              className="absolute -right-2 -top-2 rounded-full border bg-background px-1.5 text-xs leading-5 hover:bg-muted"
-              aria-label="Remove photo"
+      <div className="flex flex-wrap gap-3">
+        {(["front", "back"] as const).map((which) => {
+          const s = which === "front" ? front : back;
+          return s ? (
+            <div key={which} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={slotImg(s)}
+                alt={which}
+                className="h-28 w-28 rounded-md border bg-muted object-contain"
+              />
+              <span className="absolute bottom-1 left-1 rounded bg-background/80 px-1 text-[10px] font-medium capitalize">
+                {which}
+                {s.cutout ? " ✓" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeSlot(which)}
+                disabled={disabled}
+                className="absolute -right-2 -top-2 rounded-full border bg-background px-1.5 text-xs leading-5 hover:bg-muted"
+                aria-label={`Remove ${which}`}
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <label
+              key={which}
+              className="flex h-28 w-28 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-2 text-center text-xs text-muted-foreground hover:bg-muted"
             >
-              ✕
-            </button>
+              {busy === `upload-${which}`
+                ? "Uploading…"
+                : which === "front"
+                  ? "+ Front photo"
+                  : "+ Back photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onSelect(which, e)}
+                disabled={disabled}
+              />
+            </label>
+          );
+        })}
+      </div>
+
+      {front && (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={onBeautify}
+            disabled={disabled}
+            className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-60"
+          >
+            {busy === "beautify"
+              ? "Beautifying…"
+              : beautified
+                ? "✨ Beautify again"
+                : "✨ Beautify (remove background)"}
+          </button>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex overflow-hidden rounded-md border text-sm">
+              <button
+                type="button"
+                onClick={() => chooseBg("plain")}
+                disabled={disabled}
+                className={
+                  "px-3 py-1.5 font-medium " +
+                  (bg === "plain" ? "bg-foreground text-background" : "hover:bg-muted")
+                }
+              >
+                Plain
+              </button>
+              <button
+                type="button"
+                onClick={() => chooseBg("shadow")}
+                disabled={disabled}
+                className={
+                  "border-l px-3 py-1.5 font-medium " +
+                  (bg === "shadow" ? "bg-foreground text-background" : "hover:bg-muted")
+                }
+              >
+                Shadow
+              </button>
+            </div>
+
+            {bg === "plain" && (
+              <div className="flex items-center gap-2">
+                {SWATCHES.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => chooseColor(c)}
+                    disabled={disabled}
+                    aria-label={`Background ${c}`}
+                    className={
+                      "h-6 w-6 rounded-full border " +
+                      (color.toLowerCase() === c.toLowerCase()
+                        ? "ring-2 ring-ring ring-offset-1"
+                        : "")
+                    }
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => chooseColor(e.target.value)}
+                  disabled={disabled}
+                  aria-label="Custom background color"
+                  className="h-6 w-8 cursor-pointer rounded border bg-transparent p-0"
+                />
+              </div>
+            )}
           </div>
 
-          {!showToggle ? (
-            <button
-              type="button"
-              onClick={onEnhance}
-              disabled={busy !== null}
-              className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-60"
-            >
-              {busy === "enhance" ? "Enhancing…" : "✨ Enhance photo"}
-            </button>
-          ) : (
-            <div className="space-y-1.5">
-              <div className="inline-flex overflow-hidden rounded-md border text-sm">
-                <button
-                  type="button"
-                  onClick={() => setChoice("enhanced")}
-                  className={
-                    "px-3 py-1.5 font-medium " +
-                    (choice === "enhanced"
-                      ? "bg-foreground text-background"
-                      : "hover:bg-muted")
-                  }
-                >
-                  Enhanced
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChoice("original")}
-                  className={
-                    "border-l px-3 py-1.5 font-medium " +
-                    (choice === "original"
-                      ? "bg-foreground text-background"
-                      : "hover:bg-muted")
-                  }
-                >
-                  Original
-                </button>
+          <button
+            type="button"
+            onClick={() => makeComposite()}
+            disabled={disabled}
+            className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
+          >
+            {busy === "compose"
+              ? "Working…"
+              : composite
+                ? "Update composite"
+                : "Create composite"}
+          </button>
+
+          {composite && (
+            <div className="space-y-1">
+              <div className="w-full max-w-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={urlOf(composite)}
+                  alt="Composite"
+                  className="aspect-square w-full rounded-lg border bg-muted object-contain"
+                />
               </div>
               <p className="text-xs text-muted-foreground">
-                Showing the <span className="font-medium">{choice}</span> photo —
-                this is what buyers see first
-                {choice === "enhanced"
-                  ? "; they can still switch to the original on the listing."
-                  : "."}
+                This composite is your listing photo. Your original
+                {back ? " front and back photos are" : " photo is"} kept
+                alongside it.
               </p>
             </div>
           )}

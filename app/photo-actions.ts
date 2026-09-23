@@ -1,22 +1,39 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { enhanceStoredPhoto } from "@/lib/enhance";
+import { cutoutStoredPhoto, compositeStoredPhotos } from "@/lib/enhance";
 
-/**
- * Enhance an already-uploaded photo (by its storage path) on demand from the
- * upload form. Returns the enhanced object path, or null when it couldn't be
- * enhanced (a slabbed coin the formatter refuses, the service being off, or any
- * error). Requires a signed-in user.
- */
-export async function enhanceUploadedPhoto(
-  path: string,
-): Promise<string | null> {
-  if (!path) return null;
+async function isSignedIn(): Promise<boolean> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return null;
-  return enhanceStoredPhoto(path);
+  return !!user;
+}
+
+/**
+ * Beautify (remove the background from) an already-uploaded photo. Returns the
+ * new transparent-PNG path, or null (slab / formatter off / error). Requires a
+ * signed-in user.
+ */
+export async function beautifyPhoto(path: string): Promise<string | null> {
+  if (!path || !(await isSignedIn())) return null;
+  return cutoutStoredPhoto(path);
+}
+
+/**
+ * Composite 1–2 uploaded photos onto a background: "shadow" or a solid
+ * "#RRGGBB". Returns the composite PNG path, or null. Requires a signed-in user.
+ */
+export async function composePhotos(
+  paths: string[],
+  background: string,
+): Promise<string | null> {
+  if (!Array.isArray(paths) || paths.length === 0) return null;
+  if (!(await isSignedIn())) return null;
+  const bg =
+    background === "shadow" || /^#?[0-9a-fA-F]{6}$/.test(background ?? "")
+      ? background
+      : "shadow";
+  return compositeStoredPhotos(paths.filter(Boolean).slice(0, 2), bg);
 }
