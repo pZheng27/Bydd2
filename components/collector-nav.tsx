@@ -5,11 +5,10 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/collector", label: "Overview" },
+  { href: "/collection", label: "Collection" },
   { href: "/saved", label: "Saved" },
   { href: "/orders", label: "Orders" },
   { href: "/offers", label: "Offers" },
-  { href: "/collection", label: "Collection" },
   { href: "/wants", label: "Wants" },
 ];
 

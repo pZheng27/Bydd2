@@ -20,7 +20,7 @@ export function RoleNav() {
   const inCollector = COLLECTOR_PREFIXES.some((p) => pathname.startsWith(p));
 
   const items = [
-    { href: "/collector", label: "Collector", active: inCollector },
+    { href: "/collection", label: "Collector", active: inCollector },
     { href: "/dealer", label: "Dealer", active: inDealer },
   ];
 
