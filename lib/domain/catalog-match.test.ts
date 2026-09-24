@@ -17,6 +17,7 @@ const coin = (over: Partial<CoinType>): CoinType => ({
 
 const CATALOG: CoinType[] = [
   coin({ id: "morgan-1881-s", series: "Morgan Dollar", year: 1881, mintmark: "S", name: "1881-S Morgan Dollar" }),
+  coin({ id: "morgan-1884-o", series: "Morgan Dollar", year: 1884, mintmark: "O", name: "1884-O Morgan Dollar" }),
   coin({ id: "morgan-1889-cc", series: "Morgan Dollar", year: 1889, mintmark: "CC", name: "1889-CC Morgan Dollar" }),
   coin({ id: "morgan-1921", series: "Morgan Dollar", year: 1921, mintmark: null, name: "1921 Morgan Dollar" }),
   coin({ id: "peace-1921", series: "Peace Dollar", year: 1921, mintmark: null, name: "1921 Peace Dollar" }),
@@ -46,6 +47,14 @@ describe("matchCatalogCoin", () => {
 
   it("treats a missing mintmark as Philadelphia", () => {
     expect(matchCatalogCoin("1943 Steel Cent", CATALOG)).toBe("lincoln-1943");
+  });
+
+  it("recognizes spelled-out mint names in any capitalization", () => {
+    expect(matchCatalogCoin("1889 Carson City Morgan Dollar", CATALOG)).toBe("morgan-1889-cc");
+    expect(matchCatalogCoin("1889 CARSON CITY Morgan Dollar", CATALOG)).toBe("morgan-1889-cc");
+    expect(matchCatalogCoin("1881 San Francisco Morgan Dollar", CATALOG)).toBe("morgan-1881-s");
+    expect(matchCatalogCoin("1884 new orleans Morgan Dollar", CATALOG)).toBe("morgan-1884-o");
+    expect(matchCatalogCoin("1921 Philadelphia Morgan Dollar", CATALOG)).toBe("morgan-1921");
   });
 
   it("disambiguates same year+mint by a distinctive series word", () => {
