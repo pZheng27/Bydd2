@@ -175,9 +175,12 @@ export function PhotoUploader({
     if (composite && bg === "plain") makeComposite("plain", next);
   }
 
+  // Each photo contributes its beautified version when it has one, otherwise
+  // the original. When a composite exists it leads, followed by those photos.
+  const photoPaths = slots.map((s) => s.cutout ?? s.original);
   const submitPhotos: string[] = composite
-    ? [composite, ...slots.map((s) => s.original)]
-    : slots.map((s) => s.cutout ?? s.original);
+    ? [composite, ...photoPaths]
+    : photoPaths;
 
   const composeLabel =
     busy === "compose"

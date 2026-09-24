@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readPhotosOriginal, removeStoredPhotos } from "@/lib/enhance";
+import { getCoinTypes } from "@/lib/catalog";
+import { matchCatalogCoin } from "@/lib/domain/catalog-match";
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = (v as string | null)?.trim();
@@ -81,7 +83,13 @@ export async function addCollectionItem(formData: FormData) {
     photos,
     formData.getAll("photo_originals_map").map(String),
   );
-  const coinTypeId = str(formData.get("coin_type_id"));
+  const title = str(formData.get("title")) ?? "Untitled coin";
+  // Use the picked catalog coin, or auto-detect it from the title (e.g.
+  // "1881-S Morgan Dollar" -> the matching catalog coin) when none was picked.
+  let coinTypeId = str(formData.get("coin_type_id"));
+  if (!coinTypeId) {
+    coinTypeId = matchCatalogCoin(title, await getCoinTypes(supabase));
+  }
   const setId = str(formData.get("collection_set_id"));
   // A coin must be added to a set (enforced in the form too).
   if (!setId) redirect("/collection/new");
@@ -92,7 +100,7 @@ export async function addCollectionItem(formData: FormData) {
       collection_id: collectionId,
       coin_type_id: coinTypeId,
       ...(coinTypeId ? await catalogFields(supabase, coinTypeId) : {}),
-      title: str(formData.get("title")) ?? "Untitled coin",
+      title,
       grading_service: str(formData.get("grading_service")),
       cert_number: str(formData.get("cert_number")),
       grade: gradeVal,
