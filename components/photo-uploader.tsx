@@ -7,6 +7,7 @@ import { beautifyPhoto, composePhotos } from "@/app/photo-actions";
 type Slot = {
   id: string;
   original: string;
+  sampledBg: string; // colour sampled from the original's corners (the old background)
   cutout: string | null; // transparent cut-out, after "Remove background"
   bg: "transparent" | string; // "transparent" or a hex colour, once cut out
   colored: string | null; // the cut-out placed on `bg` (a hex colour)
@@ -14,14 +15,104 @@ type Slot = {
 
 const SWATCHES = ["#ffffff", "#f4f4f5", "#111114", "#1e293b", "#3f3f46"];
 
+/** Normalize free-typed hex ("1e293b", "#abc", "#1E293B") to "#rrggbb" or null. */
+function normalizeHex(s: string): string | null {
+  let v = s.trim().toLowerCase();
+  if (!v.startsWith("#")) v = "#" + v;
+  if (/^#[0-9a-f]{3}$/.test(v))
+    v = "#" + v.slice(1).split("").map((c) => c + c).join("");
+  return /^#[0-9a-f]{6}$/.test(v) ? v : null;
+}
+
+/** A single colour input: a live swatch + one hex text field (no R/G/B trio). */
+function HexColorInput({
+  value,
+  onApply,
+  disabled,
+}: {
+  value: string;
+  onApply: (hex: string) => void;
+  disabled?: boolean;
+}) {
+  // Keyed on `value` by the parent, so a new value remounts with fresh text.
+  const [text, setText] = useState(value);
+  const valid = normalizeHex(text);
+  const apply = () => {
+    const h = normalizeHex(text);
+    if (h) onApply(h);
+  };
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="h-5 w-5 shrink-0 rounded-full border"
+        style={{ backgroundColor: valid ?? "transparent" }}
+      />
+      <input
+        type="text"
+        value={text}
+        disabled={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={apply}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            apply();
+          }
+        }}
+        placeholder="#1e293b"
+        aria-label="Custom background colour (hex)"
+        className="w-24 rounded border bg-background px-1.5 py-0.5 text-[11px] outline-none focus:ring-2 focus:ring-ring"
+      />
+    </span>
+  );
+}
+
+/** Average the four corners of an uploaded image — the original background colour. */
+async function sampleCornerColor(file: File): Promise<string> {
+  try {
+    const bmp = await createImageBitmap(file);
+    const canvas = document.createElement("canvas");
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "#f4f4f5";
+    ctx.drawImage(bmp, 0, 0);
+    bmp.close?.();
+    const w = canvas.width;
+    const h = canvas.height;
+    const s = Math.max(2, Math.floor(Math.min(w, h) * 0.04));
+    const patches = [
+      [0, 0],
+      [w - s, 0],
+      [0, h - s],
+      [w - s, h - s],
+    ];
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let n = 0;
+    for (const [x, y] of patches) {
+      const { data } = ctx.getImageData(x, y, s, s);
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+        n += 1;
+      }
+    }
+    if (!n) return "#f4f4f5";
+    const to2 = (v: number) => Math.round(v / n).toString(16).padStart(2, "0");
+    return `#${to2(r)}${to2(g)}${to2(b)}`;
+  } catch {
+    return "#f4f4f5";
+  }
+}
+
 /**
- * Photo uploader with per-photo processing.
- *
- * Each photo can have its background removed, then be placed on a chosen
- * background: None (transparent) or a solid colour (swatches + a custom picker).
- * More than one photo can also be combined into a composite (that section is a
- * work in progress). On submit, each photo is saved in its processed form; a
- * composite, if made, leads.
+ * Photo uploader with per-photo processing. Each photo can have its background
+ * removed, then be placed on a background — None (transparent) or a solid colour
+ * (swatches + one hex input), defaulting to the original's own corner colour.
+ * More than one photo can also be composited (work in progress).
  */
 export function PhotoUploader({
   dealerId,
@@ -40,7 +131,6 @@ export function PhotoUploader({
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Obverse/reverse chooser, shown when compositing more than two photos.
   const [picking, setPicking] = useState(false);
   const [obvId, setObvId] = useState<string | null>(null);
   const [revId, setRevId] = useState<string | null>(null);
@@ -48,8 +138,6 @@ export function PhotoUploader({
   const urlOf = (path: string) =>
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
 
-  // The version of a photo to show/save: the coloured cut-out, else the
-  // transparent cut-out, else the untouched original.
   function slotDisplay(s: Slot): string {
     if (!s.cutout) return s.original;
     if (s.bg === "transparent") return s.cutout;
@@ -58,8 +146,6 @@ export function PhotoUploader({
   const slotUrl = (s: Slot) => urlOf(slotDisplay(s));
   const disabled = busy !== null;
 
-  // Photos that feed a composite use the transparent cut-out (so they sit on the
-  // composite's own background), else the original.
   function compositeSlots(): Slot[] {
     if (slots.length <= 2) return slots;
     const o = slots.find((s) => s.id === obvId);
@@ -97,17 +183,19 @@ export function PhotoUploader({
     try {
       for (const file of files.slice(0, 8)) {
         const path = await upload(file);
-        if (path)
-          setSlots((prev) => [
-            ...prev,
-            {
-              id: crypto.randomUUID(),
-              original: path,
-              cutout: null,
-              bg: "transparent",
-              colored: null,
-            },
-          ]);
+        if (!path) continue;
+        const sampledBg = await sampleCornerColor(file);
+        setSlots((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            original: path,
+            sampledBg,
+            cutout: null,
+            bg: "transparent",
+            colored: null,
+          },
+        ]);
       }
       resetDerived();
     } finally {
@@ -123,25 +211,32 @@ export function PhotoUploader({
     setNote(null);
     try {
       const cut = await beautifyPhoto(slot.original);
-      if (cut) {
-        setSlots((prev) =>
-          prev.map((s) =>
-            s.id === id ? { ...s, cutout: cut, bg: "transparent", colored: null } : s,
-          ),
-        );
-        setComposite(null);
-      } else {
+      if (!cut) {
         setNote(
           "That photo's background couldn't be removed — a slabbed coin is kept in its holder. The original will be used.",
         );
+        return;
       }
+      // Default the new background to the original's own corner colour.
+      const colored = await composePhotos([cut], slot.sampledBg);
+      setSlots((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                cutout: cut,
+                bg: colored ? slot.sampledBg : "transparent",
+                colored: colored ?? null,
+              }
+            : s,
+        ),
+      );
+      setComposite(null);
     } finally {
       setBusy(null);
     }
   }
 
-  // Set a photo's background to None (transparent) or a solid colour. A colour
-  // places the cut-out coin on that colour via the formatter.
   async function setSlotBg(id: string, next: "transparent" | string) {
     const slot = slots.find((s) => s.id === id);
     if (!slot?.cutout) return;
@@ -236,10 +331,11 @@ export function PhotoUploader({
             ? "Create composite"
             : "Apply background";
 
-  /** A row of background options for one photo: None + swatches + custom picker. */
+  /** Per-photo background options: None + Original (corner colour) + swatches + hex. */
   function bgOptions(s: Slot) {
+    const isColor = (c: string) => s.bg.toLowerCase() === c.toLowerCase();
     return (
-      <div className="w-32 space-y-1">
+      <div className="w-40 space-y-1">
         <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           Background
         </div>
@@ -257,6 +353,18 @@ export function PhotoUploader({
           >
             None
           </button>
+          <button
+            type="button"
+            onClick={() => setSlotBg(s.id, s.sampledBg)}
+            disabled={disabled}
+            title="Original background (from the corners)"
+            aria-label="Original background colour"
+            className={
+              "h-5 w-5 rounded-full border-2 " +
+              (isColor(s.sampledBg) ? "ring-2 ring-ring ring-offset-1" : "")
+            }
+            style={{ backgroundColor: s.sampledBg }}
+          />
           {SWATCHES.map((c) => (
             <button
               key={c}
@@ -266,20 +374,16 @@ export function PhotoUploader({
               aria-label={`Background ${c}`}
               className={
                 "h-5 w-5 rounded-full border " +
-                (s.bg.toLowerCase() === c.toLowerCase()
-                  ? "ring-2 ring-ring ring-offset-1"
-                  : "")
+                (isColor(c) ? "ring-2 ring-ring ring-offset-1" : "")
               }
               style={{ backgroundColor: c }}
             />
           ))}
-          <input
-            type="color"
-            value={s.bg === "transparent" ? "#ffffff" : s.bg}
-            onChange={(e) => setSlotBg(s.id, e.target.value)}
+          <HexColorInput
+            key={s.bg}
+            value={s.bg === "transparent" ? s.sampledBg : s.bg}
+            onApply={(hex) => setSlotBg(s.id, hex)}
             disabled={disabled}
-            aria-label="Custom background colour"
-            className="h-5 w-6 cursor-pointer rounded border bg-transparent p-0"
           />
         </div>
         {busy === `color:${s.id}` && (
@@ -332,17 +436,16 @@ export function PhotoUploader({
       ))}
 
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-        {/* Left: uploaded photos + per-photo processing */}
         <div className="space-y-4 lg:flex-1">
           <div className="flex flex-wrap gap-4">
             {slots.map((s) => (
               <div key={s.id} className="space-y-1.5">
-                <div className="relative h-32 w-32">
+                <div className="relative h-40 w-40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={slotUrl(s)}
                     alt=""
-                    className="h-32 w-32 rounded-md border bg-muted object-contain"
+                    className="h-40 w-40 rounded-md border bg-muted object-contain"
                   />
                   <button
                     type="button"
@@ -359,7 +462,7 @@ export function PhotoUploader({
                     type="button"
                     onClick={() => removeBackground(s.id)}
                     disabled={disabled}
-                    className="w-32 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60"
+                    className="w-40 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60"
                   >
                     {busy === `bg:${s.id}` ? "Removing…" : "Remove background"}
                   </button>
@@ -369,7 +472,7 @@ export function PhotoUploader({
               </div>
             ))}
 
-            <label className="flex h-32 w-32 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-2 text-center text-xs text-muted-foreground hover:bg-muted">
+            <label className="flex h-40 w-40 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-2 text-center text-xs text-muted-foreground hover:bg-muted">
               {busy === "upload" ? "Uploading…" : "+ Add photo"}
               <input
                 type="file"
@@ -419,7 +522,7 @@ export function PhotoUploader({
                 </div>
 
                 {bg === "plain" && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {SWATCHES.map((c) => (
                       <button
                         key={c}
@@ -436,13 +539,11 @@ export function PhotoUploader({
                         style={{ backgroundColor: c }}
                       />
                     ))}
-                    <input
-                      type="color"
+                    <HexColorInput
+                      key={color}
                       value={color}
-                      onChange={(e) => chooseColor(e.target.value)}
+                      onApply={chooseColor}
                       disabled={disabled}
-                      aria-label="Custom background colour"
-                      className="h-6 w-8 cursor-pointer rounded border bg-transparent p-0"
                     />
                   </div>
                 )}
@@ -503,7 +604,6 @@ export function PhotoUploader({
           )}
         </div>
 
-        {/* Right: composite result */}
         {composite && (
           <div className="space-y-1 lg:w-72 lg:shrink-0">
             <div className="w-full max-w-xs">
