@@ -48,14 +48,16 @@ export function matchCatalogCoin(
   if (!title || catalog.length === 0) return null;
   const t = title.toLowerCase();
 
-  // A year is required for confidence (first 4-digit year in the title).
-  const ym = t.match(/\b(1[6-9]\d{2}|20\d{2})\b/);
+  // A year is required (4 digits not embedded in a longer number). A letter may
+  // follow, so an attached mintmark like "1889CC" still parses.
+  const ym = t.match(/(?<!\d)(1[6-9]\d{2}|20\d{2})(?!\d)/);
   if (!ym) return null;
   const year = Number(ym[1]);
 
-  // Mintmark immediately after the year: "1881-s", "1889 cc", "1916d". Absent =
-  // Philadelphia. ("cc" before the single letters so "1889-cc" reads as CC.)
-  const mm = t.match(/\b(?:1[6-9]\d{2}|20\d{2})[\s-]*(cc|[dsopwc])\b/);
+  // Mintmark right after the year, with or without a separator: "1881-s",
+  // "1889 cc", "1889cc", "1916d". Absent = Philadelphia. ("cc" is tried before
+  // the single letters so "1889cc" reads as CC, not C.)
+  const mm = t.match(/(?<!\d)(?:1[6-9]\d{2}|20\d{2})[\s-]*(cc|[dsopwc])\b/);
   const wantMint = mm ? normMint(mm[1]) : "P";
 
   const byYearMint = catalog.filter(

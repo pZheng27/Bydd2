@@ -36,6 +36,14 @@ describe("matchCatalogCoin", () => {
     expect(matchCatalogCoin("1889-CC Morgan Dollar VF details", CATALOG)).toBe("morgan-1889-cc");
   });
 
+  it("parses a mintmark whether or not it's separated from the year", () => {
+    expect(matchCatalogCoin("1889CC Morgan Dollar", CATALOG)).toBe("morgan-1889-cc");
+    expect(matchCatalogCoin("1889 CC Morgan Dollar", CATALOG)).toBe("morgan-1889-cc");
+    expect(matchCatalogCoin("1889-CC Morgan Dollar", CATALOG)).toBe("morgan-1889-cc");
+    expect(matchCatalogCoin("1916D Mercury Dime", CATALOG)).toBe("mercury-1916-d");
+    expect(matchCatalogCoin("1881s Morgan Dollar", CATALOG)).toBe("morgan-1881-s");
+  });
+
   it("treats a missing mintmark as Philadelphia", () => {
     expect(matchCatalogCoin("1943 Steel Cent", CATALOG)).toBe("lincoln-1943");
   });
