@@ -7,11 +7,12 @@ import { beautifyPhoto, composePhotos } from "@/app/photo-actions";
 type Slot = {
   id: string;
   original: string;
-  sampledBg: string; // colour sampled from the original's corners (the old background)
   cutout: string | null; // transparent cut-out, after "Remove background"
   bg: "transparent" | string; // "transparent" or a hex colour, once cut out
   colored: string | null; // the cut-out placed on `bg` (a hex colour)
 };
+
+const DEFAULT_BG = "#ffffff"; // where a cut-out coin is placed by default
 
 const SWATCHES = ["#ffffff", "#f4f4f5", "#111114", "#1e293b", "#3f3f46"];
 
@@ -67,52 +68,11 @@ function HexColorInput({
   );
 }
 
-/** Average the four corners of an uploaded image — the original background colour. */
-async function sampleCornerColor(file: File): Promise<string> {
-  try {
-    const bmp = await createImageBitmap(file);
-    const canvas = document.createElement("canvas");
-    canvas.width = bmp.width;
-    canvas.height = bmp.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return "#f4f4f5";
-    ctx.drawImage(bmp, 0, 0);
-    bmp.close?.();
-    const w = canvas.width;
-    const h = canvas.height;
-    const s = Math.max(2, Math.floor(Math.min(w, h) * 0.04));
-    const patches = [
-      [0, 0],
-      [w - s, 0],
-      [0, h - s],
-      [w - s, h - s],
-    ];
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    let n = 0;
-    for (const [x, y] of patches) {
-      const { data } = ctx.getImageData(x, y, s, s);
-      for (let i = 0; i < data.length; i += 4) {
-        r += data[i];
-        g += data[i + 1];
-        b += data[i + 2];
-        n += 1;
-      }
-    }
-    if (!n) return "#f4f4f5";
-    const to2 = (v: number) => Math.round(v / n).toString(16).padStart(2, "0");
-    return `#${to2(r)}${to2(g)}${to2(b)}`;
-  } catch {
-    return "#f4f4f5";
-  }
-}
-
 /**
- * Photo uploader with per-photo processing. Each photo can have its background
- * removed, then be placed on a background — None (transparent) or a solid colour
- * (swatches + one hex input), defaulting to the original's own corner colour.
- * More than one photo can also be composited (work in progress).
+ * Photo uploader with per-photo processing. "Remove background" places the coin
+ * on a white background by default; each photo can then switch to None
+ * (transparent) or another solid colour (swatches + one hex input). More than
+ * one photo can also be composited (work in progress).
  */
 export function PhotoUploader({
   dealerId,
@@ -184,13 +144,11 @@ export function PhotoUploader({
       for (const file of files.slice(0, 8)) {
         const path = await upload(file);
         if (!path) continue;
-        const sampledBg = await sampleCornerColor(file);
         setSlots((prev) => [
           ...prev,
           {
             id: crypto.randomUUID(),
             original: path,
-            sampledBg,
             cutout: null,
             bg: "transparent",
             colored: null,
@@ -217,15 +175,15 @@ export function PhotoUploader({
         );
         return;
       }
-      // Default the new background to the original's own corner colour.
-      const colored = await composePhotos([cut], slot.sampledBg);
+      // Default to a white background so the removal is clearly visible.
+      const colored = await composePhotos([cut], DEFAULT_BG);
       setSlots((prev) =>
         prev.map((s) =>
           s.id === id
             ? {
                 ...s,
                 cutout: cut,
-                bg: colored ? slot.sampledBg : "transparent",
+                bg: colored ? DEFAULT_BG : "transparent",
                 colored: colored ?? null,
               }
             : s,
@@ -353,18 +311,6 @@ export function PhotoUploader({
           >
             None
           </button>
-          <button
-            type="button"
-            onClick={() => setSlotBg(s.id, s.sampledBg)}
-            disabled={disabled}
-            title="Original background (from the corners)"
-            aria-label="Original background colour"
-            className={
-              "h-5 w-5 rounded-full border-2 " +
-              (isColor(s.sampledBg) ? "ring-2 ring-ring ring-offset-1" : "")
-            }
-            style={{ backgroundColor: s.sampledBg }}
-          />
           {SWATCHES.map((c) => (
             <button
               key={c}
@@ -381,7 +327,7 @@ export function PhotoUploader({
           ))}
           <HexColorInput
             key={s.bg}
-            value={s.bg === "transparent" ? s.sampledBg : s.bg}
+            value={s.bg === "transparent" ? DEFAULT_BG : s.bg}
             onApply={(hex) => setSlotBg(s.id, hex)}
             disabled={disabled}
           />
