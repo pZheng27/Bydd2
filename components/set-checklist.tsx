@@ -34,72 +34,77 @@ export function SetChecklist({
   return (
     <>
       {missingCount > 0 && (
-        <label className="mt-4 inline-flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={hideMissing}
-            onChange={(e) => setHideMissing(e.target.checked)}
-            className="h-4 w-4"
-          />
-          Hide missing coins
-          {hideMissing ? ` — showing ${ownedCount} owned` : ""}
-        </label>
+        <div className="mt-5 flex justify-end">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+            <input
+              type="checkbox"
+              checked={hideMissing}
+              onChange={(e) => setHideMissing(e.target.checked)}
+              className="h-4 w-4 accent-foreground"
+            />
+            Hide missing coins
+          </label>
+        </div>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {shown.map((t) =>
           t.owned ? (
             <Link
               key={t.id}
               href={t.itemHref}
-              className="group overflow-hidden rounded-xl border transition-colors hover:bg-muted/40"
+              className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="relative">
+              <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-muted/40 to-muted/70 p-3">
                 {t.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={t.photoUrl}
                     alt={t.name}
-                    className="aspect-square w-full bg-muted object-contain"
+                    className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 ) : (
-                  <div className="flex aspect-square w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+                  <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                     No photo
                   </div>
                 )}
-                <span className="absolute left-1.5 top-1.5 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                <span className="absolute left-2.5 top-2.5 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur">
                   ✓ Owned
                 </span>
               </div>
-              <div className="p-2">
-                <div className="truncate text-xs font-medium">{t.name}</div>
-                <div className="text-[11px] text-muted-foreground">{t.label}</div>
+              <div className="p-3">
+                <div className="truncate text-sm font-medium tracking-tight">
+                  {t.name}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {t.label}
+                </div>
               </div>
             </Link>
           ) : (
             <div
               key={t.id}
-              className="flex flex-col overflow-hidden rounded-xl border border-dashed"
+              className="flex flex-col overflow-hidden rounded-2xl border border-dashed border-border/70 bg-muted/15"
             >
-              <div className="flex aspect-square w-full items-center justify-center bg-muted/30 text-[11px] font-medium text-muted-foreground">
+              <div className="flex aspect-square w-full items-center justify-center bg-muted/20 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                 Missing
               </div>
-              <div className="flex flex-1 flex-col p-2">
-                <div className="truncate text-xs font-medium text-muted-foreground">
+              <div className="flex flex-1 flex-col p-3">
+                <div className="truncate text-sm font-medium text-muted-foreground">
                   {t.name}
                 </div>
-                <div className="mt-auto pt-1.5">
+                <div className="mt-auto pt-2">
                   {t.wanted ? (
                     <Link
                       href="/wants"
-                      className="text-[11px] font-medium text-muted-foreground underline"
+                      className="text-xs font-medium text-muted-foreground underline underline-offset-2"
                     >
                       On your wants ✓
                     </Link>
                   ) : (
                     <Link
                       href={t.wantHref}
-                      className="text-[11px] font-medium underline hover:text-foreground"
+                      className="text-xs font-medium underline underline-offset-2 hover:text-foreground"
                     >
                       + Add to wants
                     </Link>

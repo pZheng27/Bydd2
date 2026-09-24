@@ -64,11 +64,11 @@ export default async function CollectionPage({
   const activeSet = (setParam && sets.find((s) => s.id === setParam)) || sets[0];
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto max-w-5xl">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">My Collection</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-3xl font-semibold tracking-tight">My Collection</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
             Organize your coins into sets and track which ones you still need.
           </p>
         </div>
@@ -78,19 +78,19 @@ export default async function CollectionPage({
       </div>
 
       {sets.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
+        <div className="mt-10 rounded-2xl border border-dashed p-12 text-center">
+          <p className="mx-auto max-w-md text-sm text-muted-foreground">
             No sets yet. A set is a group of coins — like the Carson City
             Morgans — that shows what you own and what you&apos;re still missing.
           </p>
-          <Link href="/collection/sets/new" className="mt-4 inline-block">
+          <Link href="/collection/sets/new" className="mt-5 inline-block">
             <Button>Build your first set</Button>
           </Link>
         </div>
       ) : (
         <>
-          {/* Set switcher: one tab per set + New set */}
-          <div className="mt-5 flex flex-wrap items-center gap-1 border-b">
+          {/* Set switcher: one tab per set, with New Set on the right */}
+          <div className="mt-7 flex flex-wrap items-center gap-1 border-b">
             {sets.map((s) => (
               <SetTab
                 key={s.id}
@@ -102,9 +102,9 @@ export default async function CollectionPage({
             ))}
             <Link
               href="/collection/sets/new"
-              className="ml-1 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+              className="mb-1.5 ml-auto whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
             >
-              + New set
+              + New Set
             </Link>
           </div>
 
@@ -142,13 +142,25 @@ function SetTab({
     <Link
       href={href}
       className={cn(
-        "-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium",
+        "-mb-px whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm font-medium tracking-tight transition-colors",
         active
           ? "border-foreground text-foreground"
           : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
+    </Link>
+  );
+}
+
+/** A refined "Manage set" pill, shared by both grids. */
+function ManageLink({ setId }: { setId: string }) {
+  return (
+    <Link
+      href={`/collection/sets/${setId}`}
+      className="rounded-full border px-4 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
+    >
+      Manage set
     </Link>
   );
 }
@@ -195,24 +207,19 @@ async function CustomSetGrid({
     .map((r) => r.item);
 
   return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mt-8">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">{setName}</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-semibold tracking-tight">{setName}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {coins.length === 1 ? "1 coin" : `${coins.length} coins`}
           </p>
         </div>
-        <Link
-          href={`/collection/sets/${setId}`}
-          className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-        >
-          Manage set
-        </Link>
+        <ManageLink setId={setId} />
       </div>
 
       {coins.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+        <div className="mt-6 rounded-2xl border border-dashed p-12 text-center text-sm text-muted-foreground">
           This set has no coins yet.{" "}
           <Link href={`/collection/sets/${setId}`} className="underline">
             Add coins from your collection
@@ -220,30 +227,32 @@ async function CustomSetGrid({
           .
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {coins.map((it) => (
             <Link
               key={it.id}
               href={`/collection/${it.id}`}
-              className="overflow-hidden rounded-xl border transition-colors hover:bg-muted/40"
+              className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               {it.photos?.[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={publicPhotoUrl(it.photos[0])}
-                  alt={it.title ?? ""}
-                  className="aspect-square w-full bg-muted object-contain"
-                />
+                <div className="aspect-square overflow-hidden bg-gradient-to-b from-muted/40 to-muted/70 p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={publicPhotoUrl(it.photos[0])}
+                    alt={it.title ?? ""}
+                    className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                </div>
               ) : (
-                <div className="flex aspect-square w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+                <div className="flex aspect-square w-full items-center justify-center bg-muted/50 text-xs text-muted-foreground">
                   No photo
                 </div>
               )}
-              <div className="p-2">
-                <div className="truncate text-xs font-medium">
+              <div className="p-3">
+                <div className="truncate text-sm font-medium tracking-tight">
                   {it.title || "Untitled coin"}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="mt-0.5 text-xs text-muted-foreground">
                   {gradeLabel(it)}
                 </div>
               </div>
@@ -356,32 +365,36 @@ async function SetGrid({
   });
 
   return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mt-8">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">{setName}</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-semibold tracking-tight">{setName}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {total > 0
               ? `${ownedCount} of ${total} owned · ${total - ownedCount} still needed`
               : "No coins in this set yet."}
           </p>
         </div>
-        <Link
-          href={`/collection/sets/${setId}`}
-          className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-        >
-          Manage set
-        </Link>
+        <ManageLink setId={setId} />
       </div>
 
       {total > 0 && (
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div className="h-full bg-foreground" style={{ width: `${pct}%` }} />
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="uppercase tracking-widest">Completion</span>
+            <span className="tabular-nums">{pct}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
         </div>
       )}
 
       {total === 0 ? (
-        <div className="mt-6 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+        <div className="mt-6 rounded-2xl border border-dashed p-12 text-center text-sm text-muted-foreground">
           This set has no coins yet.{" "}
           <Link href={`/collection/sets/${setId}`} className="underline">
             Add coins to it
