@@ -3,13 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { fmtMoney, gradeLabel } from "@/lib/format";
 import { CoinPhotos } from "@/components/coin-photos";
-import { getCoinTypes } from "@/lib/catalog";
-import { CatalogSelect } from "@/components/catalog-select";
-import { deleteCollectionItem, linkCollectionItemToCatalog } from "../actions";
+import { deleteCollectionItem } from "../actions";
 import { Button } from "@/components/ui/button";
-
-const inputCls =
-  "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
 
 export default async function CollectionItemPage({
   params,
@@ -34,11 +29,6 @@ export default async function CollectionItemPage({
       .maybeSingle();
     listedOnMarket = inv?.status === "listed";
   }
-
-  const coins = await getCoinTypes(supabase);
-  const linkedCoin = item.coin_type_id
-    ? coins.find((c) => c.id === item.coin_type_id)
-    : undefined;
 
   const photos: string[] = item.photos ?? [];
 
@@ -86,48 +76,6 @@ export default async function CollectionItemPage({
               <p className="mt-1 whitespace-pre-line">{item.notes}</p>
             </div>
           )}
-
-          {/* Catalog match — links the coin to the catalog so it counts in sets */}
-          <div className="mt-5 rounded-xl border p-4">
-            <div className="text-sm font-medium">Catalog match</div>
-            {coins.length === 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                The catalog has no coins yet.
-              </p>
-            ) : (
-              <>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {linkedCoin ? (
-                    <>
-                      Linked to{" "}
-                      <span className="font-medium text-foreground">
-                        {linkedCoin.name}
-                      </span>
-                      . This coin counts toward that set.
-                    </>
-                  ) : (
-                    "Pick the catalog coin this is, so it counts toward your sets."
-                  )}
-                </p>
-                <form
-                  action={linkCollectionItemToCatalog}
-                  className="mt-3 flex items-center gap-2"
-                >
-                  <input type="hidden" name="id" value={item.id} />
-                  <CatalogSelect
-                    name="coin_type_id"
-                    coins={coins}
-                    defaultValue={item.coin_type_id}
-                    className={inputCls}
-                    blankLabel="— Not linked —"
-                  />
-                  <Button type="submit" variant="outline">
-                    Save
-                  </Button>
-                </form>
-              </>
-            )}
-          </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-3 border-t pt-4">
             <Link href={`/dealer/inventory/new?from=${item.id}`}>
