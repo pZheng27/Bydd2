@@ -1,7 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { cutoutStoredPhoto, compositeStoredPhotos } from "@/lib/enhance";
+import {
+  cutoutStoredPhoto,
+  compositeStoredPhotos,
+  flattenStoredPhoto,
+} from "@/lib/enhance";
 
 async function isSignedIn(): Promise<boolean> {
   const supabase = await createClient();
@@ -19,6 +23,20 @@ async function isSignedIn(): Promise<boolean> {
 export async function beautifyPhoto(path: string): Promise<string | null> {
   if (!path || !(await isSignedIn())) return null;
   return cutoutStoredPhoto(path);
+}
+
+/**
+ * Recolour an already cut-out photo: flatten it onto a solid "#RRGGBB"
+ * background, tight to the coin (no padding). Returns the new path, or null.
+ * Requires a signed-in user.
+ */
+export async function flattenPhoto(
+  path: string,
+  background: string,
+): Promise<string | null> {
+  if (!path || !(await isSignedIn())) return null;
+  const bg = /^#[0-9a-fA-F]{6}$/.test(background ?? "") ? background : "#ffffff";
+  return flattenStoredPhoto(path, bg);
 }
 
 /**

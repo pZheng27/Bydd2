@@ -2,7 +2,7 @@
 
 import { useState, type ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { beautifyPhoto, composePhotos } from "@/app/photo-actions";
+import { beautifyPhoto, composePhotos, flattenPhoto } from "@/app/photo-actions";
 
 type Slot = {
   id: string;
@@ -175,17 +175,12 @@ export function PhotoUploader({
         );
         return;
       }
-      // Default to a white background so the removal is clearly visible.
-      const colored = await composePhotos([cut], DEFAULT_BG);
+      // Place the cut-out on white by default, tight to the coin (no padding).
+      const colored = await flattenPhoto(cut, DEFAULT_BG);
       setSlots((prev) =>
         prev.map((s) =>
           s.id === id
-            ? {
-                ...s,
-                cutout: cut,
-                bg: colored ? DEFAULT_BG : "transparent",
-                colored: colored ?? null,
-              }
+            ? { ...s, cutout: cut, bg: DEFAULT_BG, colored: colored ?? cut }
             : s,
         ),
       );
@@ -195,21 +190,15 @@ export function PhotoUploader({
     }
   }
 
-  async function setSlotBg(id: string, next: "transparent" | string) {
+  async function setSlotBg(id: string, next: string) {
     const slot = slots.find((s) => s.id === id);
     if (!slot?.cutout) return;
-    setComposite(null);
-    if (next === "transparent") {
-      setSlots((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, bg: "transparent", colored: null } : s)),
-      );
-      return;
-    }
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, bg: next } : s)));
+    setComposite(null);
     setBusy(`color:${id}`);
     setError(null);
     try {
-      const result = await composePhotos([slot.cutout], next);
+      const result = await flattenPhoto(slot.cutout, next);
       if (result) {
         setSlots((prev) =>
           prev.map((s) => (s.id === id ? { ...s, bg: next, colored: result } : s)),
@@ -298,19 +287,6 @@ export function PhotoUploader({
           Background
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setSlotBg(s.id, "transparent")}
-            disabled={disabled}
-            className={
-              "rounded-full border px-2 py-0.5 text-[10px] font-medium " +
-              (s.bg === "transparent"
-                ? "bg-foreground text-background"
-                : "hover:bg-muted")
-            }
-          >
-            None
-          </button>
           {SWATCHES.map((c) => (
             <button
               key={c}
@@ -327,7 +303,7 @@ export function PhotoUploader({
           ))}
           <HexColorInput
             key={s.bg}
-            value={s.bg === "transparent" ? DEFAULT_BG : s.bg}
+            value={s.bg}
             onApply={(hex) => setSlotBg(s.id, hex)}
             disabled={disabled}
           />
