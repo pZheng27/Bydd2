@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { publicPhotoUrl } from "@/lib/photos";
+import { Lightbox } from "@/components/lightbox";
 
 /**
  * Coin photo viewer. Shows the display photos (auto-enhanced when available)
@@ -20,20 +21,6 @@ export function CoinPhotos({
   const [active, setActive] = useState(0);
   const [showOriginal, setShowOriginal] = useState(false);
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!zoomUrl) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setZoomUrl(null);
-    };
-    window.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [zoomUrl]);
 
   if (photos.length === 0) {
     return <div className="aspect-square w-full rounded-xl border bg-muted" />;
@@ -93,30 +80,7 @@ export function CoinPhotos({
         )}
       </div>
 
-      {zoomUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setZoomUrl(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={zoomUrl}
-            alt=""
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[92vh] max-w-[92vw] rounded-lg object-contain shadow-2xl"
-          />
-          <button
-            type="button"
-            onClick={() => setZoomUrl(null)}
-            aria-label="Close"
-            className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-lg leading-6 text-black shadow hover:bg-white"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {zoomUrl && <Lightbox src={zoomUrl} onClose={() => setZoomUrl(null)} />}
     </>
   );
 }

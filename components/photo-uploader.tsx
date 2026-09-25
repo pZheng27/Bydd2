@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { beautifyPhoto, composePhotos, flattenPhoto } from "@/app/photo-actions";
+import { Lightbox } from "@/components/lightbox";
 
 type Slot = {
   id: string;
@@ -94,6 +95,7 @@ export function PhotoUploader({
   const [picking, setPicking] = useState(false);
   const [obvId, setObvId] = useState<string | null>(null);
   const [revId, setRevId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
 
   const urlOf = (path: string) =>
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
@@ -367,7 +369,8 @@ export function PhotoUploader({
                   <img
                     src={slotUrl(s)}
                     alt=""
-                    className="h-40 w-40 rounded-md border bg-muted object-contain"
+                    onClick={() => setZoom(slotUrl(s))}
+                    className="h-40 w-40 cursor-zoom-in rounded-md border bg-muted object-contain"
                   />
                   <button
                     type="button"
@@ -533,7 +536,8 @@ export function PhotoUploader({
               <img
                 src={urlOf(composite)}
                 alt="Composite"
-                className="aspect-square w-full rounded-lg border bg-muted object-contain"
+                onClick={() => setZoom(urlOf(composite))}
+                className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
               />
             </div>
             <p className="text-xs text-muted-foreground">
@@ -546,6 +550,8 @@ export function PhotoUploader({
 
       {note && <p className="text-sm text-muted-foreground">{note}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {zoom && <Lightbox src={zoom} onClose={() => setZoom(null)} />}
     </div>
   );
 }
