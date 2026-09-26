@@ -397,7 +397,7 @@ export function PhotoUploader({
   function bgOptions(s: Slot) {
     const isColor = (c: string) => s.bg.toLowerCase() === c.toLowerCase();
     return (
-      <div className="w-48 space-y-1">
+      <div className="w-[212px] space-y-1">
         <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           Background
         </div>
@@ -488,8 +488,8 @@ export function PhotoUploader({
                 }}
                 className="space-y-1.5"
               >
-                <div className="relative h-48 w-48">
-                  <div className="h-48 w-48 overflow-hidden rounded-md border bg-muted">
+                <div className="relative h-[212px] w-[212px]">
+                  <div className="h-[212px] w-[212px] overflow-hidden rounded-md border bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={
@@ -505,7 +505,7 @@ export function PhotoUploader({
                           ? { transform: `rotate(${spin.angle}deg)` }
                           : undefined
                       }
-                      className="h-48 w-48 cursor-zoom-in object-contain"
+                      className="h-[212px] w-[212px] cursor-zoom-in object-contain"
                     />
                   </div>
                   <span
@@ -555,7 +555,7 @@ export function PhotoUploader({
                     type="button"
                     onClick={() => removeBackground(s.id)}
                     disabled={disabled}
-                    className="w-48 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60"
+                    className="w-[212px] rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60"
                   >
                     {busy === `bg:${s.id}` ? "Removing…" : "Remove background"}
                   </button>
@@ -565,7 +565,7 @@ export function PhotoUploader({
               </div>
             ))}
 
-            <label className="flex h-48 w-48 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-2 text-center text-xs text-muted-foreground hover:bg-muted">
+            <label className="flex h-[212px] w-[212px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-2 text-center text-xs text-muted-foreground hover:bg-muted">
               {busy === "upload" ? "Uploading…" : "+ Add photo"}
               <input
                 type="file"
