@@ -478,8 +478,8 @@ export function PhotoUploader({
         <input key={`${p}-${i}`} type="hidden" name="photos" value={p} />
       ))}
 
-      <div className="flex flex-col gap-5 md:flex-row md:items-start">
-        <div className="space-y-4 md:flex-1">
+      <div className="space-y-4">
+        <div className="space-y-4">
           <div className="flex flex-wrap gap-4">
             {slots.map((s, i) => (
               <div
@@ -749,7 +749,7 @@ export function PhotoUploader({
         </div>
 
         {slots.length > 1 && (
-          <div className="space-y-1 md:w-72 md:shrink-0">
+          <div className="space-y-1">
             <div className="w-full max-w-xs">
               {composite ? (
                 // eslint-disable-next-line @next/next/no-img-element
