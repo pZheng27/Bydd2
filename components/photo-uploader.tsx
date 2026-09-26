@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type PointerEvent as RPointerEvent,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -107,6 +108,8 @@ export function PhotoUploader({
 
   const [slots, setSlots] = useState<Slot[]>([]);
   const [composite, setComposite] = useState<string | null>(null);
+  // Whether the composite is the listing's main (first) photo. On by default.
+  const [compositePrimary, setCompositePrimary] = useState(true);
   const [bg, setBg] = useState<"shadow" | "plain">("shadow");
   const [color, setColor] = useState("#ffffff");
   const [busy, setBusy] = useState<string | null>(null);
@@ -118,14 +121,22 @@ export function PhotoUploader({
   const [zoom, setZoom] = useState<string | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragIndex = useRef<number | null>(null);
-  // Free-angle drag-to-spin: live preview angle for the slot being dragged.
-  const [spin, setSpin] = useState<{ id: string; angle: number } | null>(null);
+  // Free-angle drag-to-spin: live preview angle (plus the cut-out's natural
+  // size, so the preview can scale to fit) for the slot being dragged.
+  const [spin, setSpin] = useState<{
+    id: string;
+    angle: number;
+    nw: number;
+    nh: number;
+  } | null>(null);
   const spinRef = useRef<{
     id: string;
     cx: number;
     cy: number;
     start: number;
     startAngle: number;
+    nw: number; // natural width of the cut-out being spun
+    nh: number; // natural height
   } | null>(null);
 
   const urlOf = (path: string) =>
@@ -289,8 +300,10 @@ export function PhotoUploader({
   function onSpinDown(e: RPointerEvent, s: Slot) {
     if (!s.baseCutout || disabled) return;
     e.preventDefault();
-    const box = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect();
+    const boxEl = (e.currentTarget as HTMLElement).parentElement;
+    const box = boxEl?.getBoundingClientRect();
     if (!box) return;
+    const img = boxEl?.querySelector("img");
     const cx = box.left + box.width / 2;
     const cy = box.top + box.height / 2;
     spinRef.current = {
@@ -299,15 +312,27 @@ export function PhotoUploader({
       cy,
       start: angleAt(cx, cy, e.clientX, e.clientY),
       startAngle: s.angle,
+      nw: img?.naturalWidth || 1,
+      nh: img?.naturalHeight || 1,
     };
-    setSpin({ id: s.id, angle: s.angle });
+    setSpin({
+      id: s.id,
+      angle: s.angle,
+      nw: img?.naturalWidth || 1,
+      nh: img?.naturalHeight || 1,
+    });
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   }
   function onSpinMove(e: RPointerEvent) {
     const sp = spinRef.current;
     if (!sp) return;
     const now = angleAt(sp.cx, sp.cy, e.clientX, e.clientY);
-    setSpin({ id: sp.id, angle: sp.startAngle + (now - sp.start) });
+    setSpin({
+      id: sp.id,
+      angle: sp.startAngle + (now - sp.start),
+      nw: sp.nw,
+      nh: sp.nh,
+    });
   }
   function onSpinUp() {
     const sp = spinRef.current;
@@ -317,6 +342,22 @@ export function PhotoUploader({
     setSpin(null);
     if (Math.round(finalAngle) !== Math.round(sp.startAngle))
       materialize(sp.id, finalAngle);
+  }
+
+  // Live rotation preview: rotate around centre AND scale down so the whole
+  // cut-out stays inside its square tile (no clipped rim), matching what the
+  // server returns after it re-crops the rotated coin — so nothing jumps when
+  // the drag is released.
+  function spinStyle(s: Slot): CSSProperties | undefined {
+    if (!spin || spin.id !== s.id) return undefined;
+    const rad = (spin.angle * Math.PI) / 180;
+    const c = Math.abs(Math.cos(rad));
+    const si = Math.abs(Math.sin(rad));
+    const long = Math.max(spin.nw, spin.nh);
+    const w = spin.nw / long; // content size within the tile (0..1)
+    const h = spin.nh / long;
+    const k = 1 / Math.max(w * c + h * si, w * si + h * c);
+    return { transform: `rotate(${spin.angle}deg) scale(${k})` };
   }
 
   function removeSlot(id: string) {
@@ -389,7 +430,9 @@ export function PhotoUploader({
 
   const photoPaths = slots.map((s) => slotDisplay(s));
   const submitPhotos: string[] = composite
-    ? [composite, ...photoPaths]
+    ? compositePrimary
+      ? [composite, ...photoPaths]
+      : [...photoPaths, composite]
     : photoPaths;
 
   // Empty state: labelled Obverse/Reverse boxes for the first two photos.
@@ -513,11 +556,7 @@ export function PhotoUploader({
                       alt=""
                       draggable={false}
                       onClick={() => setZoom(slotUrl(s))}
-                      style={
-                        spin && spin.id === s.id
-                          ? { transform: `rotate(${spin.angle}deg)` }
-                          : undefined
-                      }
+                      style={spinStyle(s)}
                       className="h-[212px] w-[212px] cursor-zoom-in object-contain"
                     />
                   </div>
@@ -536,7 +575,7 @@ export function PhotoUploader({
                   >
                     ⠿
                   </span>
-                  {i === 0 && !composite && (
+                  {i === 0 && (!composite || !compositePrimary) && (
                     <span className="absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
                       Primary
                     </span>
@@ -756,16 +795,23 @@ export function PhotoUploader({
         </div>
 
         {slots.length > 1 && (
-          <div className="space-y-1">
-            <div className="w-full max-w-xs">
+          <div className="space-y-2">
+            <div className="relative w-full max-w-xs">
               {composite ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={urlOf(composite)}
-                  alt="Composite"
-                  onClick={() => setZoom(urlOf(composite))}
-                  className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
-                />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={urlOf(composite)}
+                    alt="Composite"
+                    onClick={() => setZoom(urlOf(composite))}
+                    className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
+                  />
+                  {compositePrimary && (
+                    <span className="absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
+                      Primary
+                    </span>
+                  )}
+                </>
               ) : (
                 <div className="flex aspect-square w-full items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
                   Your composite will appear here
@@ -773,10 +819,21 @@ export function PhotoUploader({
               )}
             </div>
             {composite && (
-              <p className="text-xs text-muted-foreground">
-                This is your listing&apos;s main photo. Your uploaded photos are
-                kept alongside it.
-              </p>
+              <label className="flex max-w-xs items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={compositePrimary}
+                  onChange={(e) => setCompositePrimary(e.target.checked)}
+                  disabled={disabled}
+                  className="mt-0.5"
+                />
+                <span>
+                  Use the composite as the listing&apos;s main photo.{" "}
+                  {compositePrimary
+                    ? "Your uploaded photos are kept alongside it."
+                    : "Your first uploaded photo will be the main image instead."}
+                </span>
+              </label>
             )}
           </div>
         )}
