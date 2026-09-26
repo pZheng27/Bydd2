@@ -478,8 +478,8 @@ export function PhotoUploader({
         <input key={`${p}-${i}`} type="hidden" name="photos" value={p} />
       ))}
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-        <div className="space-y-4 lg:flex-1">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start">
+        <div className="space-y-4 md:flex-1">
           <div className="flex flex-wrap gap-4">
             {slots.map((s, i) => (
               <div
@@ -748,21 +748,29 @@ export function PhotoUploader({
           )}
         </div>
 
-        {composite && (
-          <div className="space-y-1 lg:w-72 lg:shrink-0">
+        {slots.length > 1 && (
+          <div className="space-y-1 md:w-72 md:shrink-0">
             <div className="w-full max-w-xs">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={urlOf(composite)}
-                alt="Composite"
-                onClick={() => setZoom(urlOf(composite))}
-                className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
-              />
+              {composite ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={urlOf(composite)}
+                  alt="Composite"
+                  onClick={() => setZoom(urlOf(composite))}
+                  className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
+                />
+              ) : (
+                <div className="flex aspect-square w-full items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+                  Your composite will appear here
+                </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              This is your listing&apos;s main photo. Your uploaded photos are
-              kept alongside it.
-            </p>
+            {composite && (
+              <p className="text-xs text-muted-foreground">
+                This is your listing&apos;s main photo. Your uploaded photos are
+                kept alongside it.
+              </p>
+            )}
           </div>
         )}
       </div>
