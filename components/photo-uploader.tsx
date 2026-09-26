@@ -29,6 +29,9 @@ const DEFAULT_BG = "#ffffff"; // where a cut-out coin is placed by default
 
 const SWATCHES = ["#ffffff", "#f4f4f5", "#111114", "#1e293b", "#3f3f46"];
 
+// The first two photos of a coin are its two sides, labelled by default.
+const SLOT_LABELS = ["Obverse", "Reverse"];
+
 /** Normalize free-typed hex ("1e293b", "#abc", "#1E293B") to "#rrggbb" or null. */
 function normalizeHex(s: string): string | null {
   let v = s.trim().toLowerCase();
@@ -382,6 +385,9 @@ export function PhotoUploader({
     ? [composite, ...photoPaths]
     : photoPaths;
 
+  // Empty state: labelled Obverse/Reverse boxes for the first two photos.
+  const placeholders = slots.length < 2 ? SLOT_LABELS.slice(slots.length) : [];
+
   const composeLabel =
     busy === "compose"
       ? "Working…"
@@ -565,17 +571,53 @@ export function PhotoUploader({
               </div>
             ))}
 
-            <label className="flex h-[212px] w-[212px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed p-2 text-center text-xs text-muted-foreground hover:bg-muted">
-              {busy === "upload" ? "Uploading…" : "+ Add photo"}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={onAdd}
-                disabled={disabled}
-              />
-            </label>
+            {placeholders.map((label) => (
+              <label
+                key={label}
+                className={
+                  "flex h-[212px] w-[212px] cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:bg-muted/30 " +
+                  (disabled ? "pointer-events-none opacity-60" : "")
+                }
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-2xl leading-none">
+                  +
+                </span>
+                <span className="text-sm font-medium">
+                  {busy === "upload" ? "Uploading…" : label}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={onAdd}
+                  disabled={disabled}
+                />
+              </label>
+            ))}
+            {slots.length >= 2 && (
+              <label
+                className={
+                  "flex h-[212px] w-[212px] cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-muted-foreground/30 text-muted-foreground hover:bg-muted/30 " +
+                  (disabled ? "pointer-events-none opacity-60" : "")
+                }
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-2xl leading-none">
+                  +
+                </span>
+                <span className="text-sm font-medium">
+                  {busy === "upload" ? "Uploading…" : "Add photo"}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={onAdd}
+                  disabled={disabled}
+                />
+              </label>
+            )}
           </div>
 
           {slots.length > 0 && (
