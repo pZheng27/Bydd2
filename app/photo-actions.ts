@@ -5,6 +5,7 @@ import {
   cutoutStoredPhoto,
   compositeStoredPhotos,
   flattenStoredPhoto,
+  rotateStoredPhoto,
 } from "@/lib/enhance";
 
 async function isSignedIn(): Promise<boolean> {
@@ -37,6 +38,19 @@ export async function flattenPhoto(
   if (!path || !(await isSignedIn())) return null;
   const bg = /^#[0-9a-fA-F]{6}$/.test(background ?? "") ? background : "#ffffff";
   return flattenStoredPhoto(path, bg);
+}
+
+/**
+ * Rotate an already cut-out photo clockwise by `degrees`. Returns the new path,
+ * or null. Requires a signed-in user.
+ */
+export async function rotatePhoto(
+  path: string,
+  degrees: number,
+): Promise<string | null> {
+  if (!path || !(await isSignedIn())) return null;
+  const d = ((Math.round(degrees) % 360) + 360) % 360;
+  return rotateStoredPhoto(path, d);
 }
 
 /**

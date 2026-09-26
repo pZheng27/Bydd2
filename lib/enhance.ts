@@ -104,6 +104,37 @@ export async function flattenStoredPhoto(
 }
 
 /**
+ * Rotate a stored (cut-out) photo clockwise by `degrees`. Returns the new
+ * object path or null. Never throws.
+ */
+export async function rotateStoredPhoto(
+  path: string,
+  degrees: number,
+): Promise<string | null> {
+  if (!formatterConfigured() || !path) return null;
+  const admin = createAdminClient();
+  if (!admin) return null;
+  try {
+    const { data: blob, error } = await admin.storage.from(BUCKET).download(path);
+    if (error || !blob) return null;
+    const form = new FormData();
+    form.append("file", blob, "coin.png");
+    form.append("degrees", String(degrees));
+    const res = await fetch(`${FORMATTER_URL}/rotate`, {
+      method: "POST",
+      headers: { "X-API-Key": FORMATTER_API_KEY as string },
+      body: form,
+    });
+    if (!res.ok) return null;
+    const out = (await res.json()) as { image_png_base64?: string | null };
+    if (!out?.image_png_base64) return null;
+    return storePng(admin, folderOf(path), out.image_png_base64);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Composite one or two stored photos (front[, back]) onto a background —
  * "shadow" (the studio look) or a solid "#RRGGBB". Returns the new PNG object
  * path, or null on any failure. Never throws.

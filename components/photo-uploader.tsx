@@ -1,16 +1,28 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import {
+  useRef,
+  useState,
+  type ChangeEvent,
+  type PointerEvent as RPointerEvent,
+} from "react";
 import { createClient } from "@/lib/supabase/client";
-import { beautifyPhoto, composePhotos, flattenPhoto } from "@/app/photo-actions";
+import {
+  beautifyPhoto,
+  composePhotos,
+  flattenPhoto,
+  rotatePhoto,
+} from "@/app/photo-actions";
 import { Lightbox } from "@/components/lightbox";
 
 type Slot = {
   id: string;
   original: string;
-  cutout: string | null; // transparent cut-out, after "Remove background"
+  baseCutout: string | null; // un-rotated cut-out; rotation re-derives from this
+  cutout: string | null; // current cut-out (baseCutout rotated by `angle`)
+  angle: number; // rotation in degrees, clockwise
   bg: "transparent" | string; // "transparent" or a hex colour, once cut out
-  colored: string | null; // the cut-out placed on `bg` (a hex colour)
+  colored: string | null; // the (rotated) cut-out placed on `bg` (a hex colour)
 };
 
 const DEFAULT_BG = "#ffffff"; // where a cut-out coin is placed by default
@@ -24,6 +36,11 @@ function normalizeHex(s: string): string | null {
   if (/^#[0-9a-f]{3}$/.test(v))
     v = "#" + v.slice(1).split("").map((c) => c + c).join("");
   return /^#[0-9a-f]{6}$/.test(v) ? v : null;
+}
+
+/** Angle in degrees of (x,y) around centre (cx,cy). */
+function angleAt(cx: number, cy: number, x: number, y: number): number {
+  return (Math.atan2(y - cy, x - cx) * 180) / Math.PI;
 }
 
 /** A single colour input: a live swatch + one hex text field (no R/G/B trio). */
@@ -98,6 +115,15 @@ export function PhotoUploader({
   const [zoom, setZoom] = useState<string | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragIndex = useRef<number | null>(null);
+  // Free-angle drag-to-spin: live preview angle for the slot being dragged.
+  const [spin, setSpin] = useState<{ id: string; angle: number } | null>(null);
+  const spinRef = useRef<{
+    id: string;
+    cx: number;
+    cy: number;
+    start: number;
+    startAngle: number;
+  } | null>(null);
 
   const urlOf = (path: string) =>
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
@@ -153,7 +179,9 @@ export function PhotoUploader({
           {
             id: crypto.randomUUID(),
             original: path,
+            baseCutout: null,
             cutout: null,
+            angle: 0,
             bg: "transparent",
             colored: null,
           },
@@ -184,7 +212,14 @@ export function PhotoUploader({
       setSlots((prev) =>
         prev.map((s) =>
           s.id === id
-            ? { ...s, cutout: cut, bg: DEFAULT_BG, colored: colored ?? cut }
+            ? {
+                ...s,
+                baseCutout: cut,
+                cutout: cut,
+                angle: 0,
+                bg: DEFAULT_BG,
+                colored: colored ?? cut,
+              }
             : s,
         ),
       );
@@ -213,6 +248,69 @@ export function PhotoUploader({
     } finally {
       setBusy(null);
     }
+  }
+
+  // Drag-to-spin. `materialize` bakes the chosen angle into the image on
+  // release — always re-derived from the un-rotated baseCutout so it never
+  // degrades — and is what the composite and the saved listing photo use.
+  async function materialize(id: string, angle: number) {
+    const slot = slots.find((s) => s.id === id);
+    if (!slot?.baseCutout) return;
+    const norm = ((Math.round(angle) % 360) + 360) % 360;
+    setBusy(`rotate:${id}`);
+    setError(null);
+    try {
+      const rotated =
+        norm === 0 ? slot.baseCutout : await rotatePhoto(slot.baseCutout, norm);
+      if (!rotated) {
+        setError("Couldn't rotate that photo. Please try again.");
+        return;
+      }
+      const colored = await flattenPhoto(rotated, slot.bg);
+      setSlots((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? { ...s, angle: norm, cutout: rotated, colored: colored ?? rotated }
+            : s,
+        ),
+      );
+      setComposite(null);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function onSpinDown(e: RPointerEvent, s: Slot) {
+    if (!s.baseCutout || disabled) return;
+    e.preventDefault();
+    const box = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect();
+    if (!box) return;
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    spinRef.current = {
+      id: s.id,
+      cx,
+      cy,
+      start: angleAt(cx, cy, e.clientX, e.clientY),
+      startAngle: s.angle,
+    };
+    setSpin({ id: s.id, angle: s.angle });
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  }
+  function onSpinMove(e: RPointerEvent) {
+    const sp = spinRef.current;
+    if (!sp) return;
+    const now = angleAt(sp.cx, sp.cy, e.clientX, e.clientY);
+    setSpin({ id: sp.id, angle: sp.startAngle + (now - sp.start) });
+  }
+  function onSpinUp() {
+    const sp = spinRef.current;
+    spinRef.current = null;
+    if (!sp) return;
+    const finalAngle = spin && spin.id === sp.id ? spin.angle : sp.startAngle;
+    setSpin(null);
+    if (Math.round(finalAngle) !== Math.round(sp.startAngle))
+      materialize(sp.id, finalAngle);
   }
 
   function removeSlot(id: string) {
@@ -391,14 +489,25 @@ export function PhotoUploader({
                 className="space-y-1.5"
               >
                 <div className="relative h-40 w-40">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={slotUrl(s)}
-                    alt=""
-                    draggable={false}
-                    onClick={() => setZoom(slotUrl(s))}
-                    className="h-40 w-40 cursor-zoom-in rounded-md border bg-muted object-contain"
-                  />
+                  <div className="h-40 w-40 overflow-hidden rounded-md border bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={
+                        spin && spin.id === s.id && s.baseCutout
+                          ? urlOf(s.baseCutout)
+                          : slotUrl(s)
+                      }
+                      alt=""
+                      draggable={false}
+                      onClick={() => setZoom(slotUrl(s))}
+                      style={
+                        spin && spin.id === s.id
+                          ? { transform: `rotate(${spin.angle}deg)` }
+                          : undefined
+                      }
+                      className="h-40 w-40 cursor-zoom-in object-contain"
+                    />
+                  </div>
                   <span
                     draggable={!disabled}
                     onDragStart={(e) => {
@@ -428,6 +537,18 @@ export function PhotoUploader({
                   >
                     ✕
                   </button>
+                  {s.cutout && (
+                    <span
+                      onPointerDown={(e) => onSpinDown(e, s)}
+                      onPointerMove={onSpinMove}
+                      onPointerUp={onSpinUp}
+                      title="Drag to rotate"
+                      aria-label="Drag to rotate"
+                      className="absolute bottom-1 right-1 cursor-grab touch-none select-none rounded-full border bg-background/90 px-1.5 text-sm leading-6 shadow-sm active:cursor-grabbing"
+                    >
+                      {busy === `rotate:${s.id}` ? "…" : "↻"}
+                    </span>
+                  )}
                 </div>
                 {!s.cutout ? (
                   <button
@@ -459,9 +580,10 @@ export function PhotoUploader({
 
           {slots.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Drag the <span aria-hidden="true">⠿</span> handle to reorder. The
-              first photo (<span className="font-medium">Primary</span>) is your
-              listing&apos;s main image.
+              Drag <span aria-hidden="true">⠿</span> to reorder — the first photo
+              (<span className="font-medium">Primary</span>) is your
+              listing&apos;s main image. After removing a background, drag{" "}
+              <span aria-hidden="true">↻</span> to spin a photo to any angle.
             </p>
           )}
 
