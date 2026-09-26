@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { beautifyPhoto, composePhotos, flattenPhoto } from "@/app/photo-actions";
 import { Lightbox } from "@/components/lightbox";
@@ -96,6 +96,8 @@ export function PhotoUploader({
   const [obvId, setObvId] = useState<string | null>(null);
   const [revId, setRevId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dragIndex = useRef<number | null>(null);
 
   const urlOf = (path: string) =>
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
@@ -219,6 +221,19 @@ export function PhotoUploader({
       supabase.storage.from("item-photos").remove([slot.original]);
     setSlots((prev) => prev.filter((s) => s.id !== id));
     resetDerived();
+  }
+
+  /** Move a photo to a new position (drag-reorder). The first one is primary. */
+  function reorder(from: number | null, to: number) {
+    if (from === null || from === to) return;
+    setSlots((prev) => {
+      if (from < 0 || from >= prev.length || to < 0 || to >= prev.length)
+        return prev;
+      const arr = [...prev];
+      const [moved] = arr.splice(from, 1);
+      arr.splice(to, 0, moved);
+      return arr;
+    });
   }
 
   async function makeComposite(nextBg?: "shadow" | "plain", nextColor?: string) {
@@ -362,16 +377,48 @@ export function PhotoUploader({
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
         <div className="space-y-4 lg:flex-1">
           <div className="flex flex-wrap gap-4">
-            {slots.map((s) => (
-              <div key={s.id} className="space-y-1.5">
+            {slots.map((s, i) => (
+              <div
+                key={s.id}
+                ref={(el) => {
+                  cardRefs.current[i] = el;
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  reorder(dragIndex.current, i);
+                  dragIndex.current = null;
+                }}
+                className="space-y-1.5"
+              >
                 <div className="relative h-40 w-40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={slotUrl(s)}
                     alt=""
+                    draggable={false}
                     onClick={() => setZoom(slotUrl(s))}
                     className="h-40 w-40 cursor-zoom-in rounded-md border bg-muted object-contain"
                   />
+                  <span
+                    draggable={!disabled}
+                    onDragStart={(e) => {
+                      dragIndex.current = i;
+                      const card = cardRefs.current[i];
+                      if (card) e.dataTransfer.setDragImage(card, 20, 20);
+                    }}
+                    onDragEnd={() => {
+                      dragIndex.current = null;
+                    }}
+                    title="Drag to reorder"
+                    className="absolute left-1 top-1 cursor-grab select-none rounded bg-background/80 px-1.5 text-sm leading-5 shadow-sm active:cursor-grabbing"
+                  >
+                    ⠿
+                  </span>
+                  {i === 0 && !composite && (
+                    <span className="absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
+                      Primary
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => removeSlot(s.id)}
@@ -409,6 +456,14 @@ export function PhotoUploader({
               />
             </label>
           </div>
+
+          {slots.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Drag the <span aria-hidden="true">⠿</span> handle to reorder. The
+              first photo (<span className="font-medium">Primary</span>) is your
+              listing&apos;s main image.
+            </p>
+          )}
 
           {slots.length > 1 && (
             <div className="space-y-3 border-t pt-4">
