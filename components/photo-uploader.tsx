@@ -139,10 +139,10 @@ export function PhotoUploader({
   const slotUrl = (s: Slot) => urlOf(slotDisplay(s));
   const disabled = busy !== null;
 
-  function compositeSlots(): Slot[] {
-    if (slots.length <= 2) return slots;
-    const o = slots.find((s) => s.id === obvId);
-    const r = slots.find((s) => s.id === revId);
+  function compositeSlots(source: Slot[] = slots): Slot[] {
+    if (source.length <= 2) return source;
+    const o = source.find((s) => s.id === obvId);
+    const r = source.find((s) => s.id === revId);
     return [o, r].filter((s): s is Slot => !!s);
   }
 
@@ -212,21 +212,22 @@ export function PhotoUploader({
       }
       // Place the cut-out on white by default, tight to the coin (no padding).
       const colored = await flattenPhoto(cut, DEFAULT_BG);
-      setSlots((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? {
-                ...s,
-                baseCutout: cut,
-                cutout: cut,
-                angle: 0,
-                bg: DEFAULT_BG,
-                colored: colored ?? cut,
-              }
-            : s,
-        ),
+      const updated = slots.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              baseCutout: cut,
+              cutout: cut,
+              angle: 0,
+              bg: DEFAULT_BG,
+              colored: colored ?? cut,
+            }
+          : s,
       );
-      setComposite(null);
+      setSlots(updated);
+      // Keep an existing composite on screen (and in sync) after a late
+      // background removal instead of clearing it.
+      if (composite) await makeComposite(undefined, undefined, updated);
     } finally {
       setBusy(null);
     }
@@ -236,7 +237,8 @@ export function PhotoUploader({
     const slot = slots.find((s) => s.id === id);
     if (!slot?.cutout) return;
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, bg: next } : s)));
-    setComposite(null);
+    // The composite uses each coin's cut-out on its own backdrop, so a tile's
+    // solid-colour choice doesn't change it — leave any existing composite be.
     setBusy(`color:${id}`);
     setError(null);
     try {
@@ -270,14 +272,15 @@ export function PhotoUploader({
         return;
       }
       const colored = await flattenPhoto(rotated, slot.bg);
-      setSlots((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? { ...s, angle: norm, cutout: rotated, colored: colored ?? rotated }
-            : s,
-        ),
+      const updated = slots.map((s) =>
+        s.id === id
+          ? { ...s, angle: norm, cutout: rotated, colored: colored ?? rotated }
+          : s,
       );
-      setComposite(null);
+      setSlots(updated);
+      // A rotation does change the composite, so refresh it in place rather
+      // than making it disappear.
+      if (composite) await makeComposite(undefined, undefined, updated);
     } finally {
       setBusy(null);
     }
@@ -337,8 +340,12 @@ export function PhotoUploader({
     });
   }
 
-  async function makeComposite(nextBg?: "shadow" | "plain", nextColor?: string) {
-    const paths = compositeSlots().map((s) => s.cutout ?? s.original);
+  async function makeComposite(
+    nextBg?: "shadow" | "plain",
+    nextColor?: string,
+    sourceSlots?: Slot[],
+  ) {
+    const paths = compositeSlots(sourceSlots).map((s) => s.cutout ?? s.original);
     if (paths.length === 0) return;
     setBusy("compose");
     setError(null);
