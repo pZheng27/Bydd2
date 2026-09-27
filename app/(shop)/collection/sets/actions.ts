@@ -88,36 +88,27 @@ export async function createCollectionSet(formData: FormData) {
 }
 
 /**
- * Toggle whether a set appears on the owner's public profile. RLS scopes the
- * update to the owner. No-op if the is_public column isn't there yet.
+ * Save a set's editable settings — name, description, and public/private — in
+ * one go. Each column is updated on its own so an older database (missing the
+ * newer columns) still saves the name; the others are then no-ops. RLS scopes
+ * every update to the owner.
  */
-export async function setSetVisibility(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  const isPublic = String(formData.get("is_public") ?? "") === "true";
-  const supabase = await createClient();
-  await supabase
-    .from("collection_sets")
-    .update({ is_public: isPublic })
-    .eq("id", id);
-  redirect(`/collection/sets/${id}`);
-}
-
-/** Save a set's name and description (RLS scopes the update to the owner). */
-export async function renameCollectionSet(formData: FormData) {
+export async function saveSetSettings(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const name = str(formData.get("name"));
   if (!id || !name) return;
   const supabase = await createClient();
   await supabase.from("collection_sets").update({ name }).eq("id", id);
-  // Separate update so the name still saves if the description column isn't
-  // there yet (that update is then a no-op).
   if (formData.has("description")) {
     await supabase
       .from("collection_sets")
       .update({ description: str(formData.get("description")) })
       .eq("id", id);
   }
+  await supabase
+    .from("collection_sets")
+    .update({ is_public: formData.get("is_public") === "true" })
+    .eq("id", id);
   redirect(`/collection/sets/${id}`);
 }
 

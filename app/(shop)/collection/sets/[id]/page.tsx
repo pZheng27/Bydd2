@@ -5,7 +5,7 @@ import { getCoinTypes, embeddedOne, type CoinType } from "@/lib/catalog";
 import { gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
 import {
-  renameCollectionSet,
+  saveSetSettings,
   removeCoinFromSet,
   addOwnCoinsToSet,
   removeOwnCoinFromSet,
@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { CatalogCoinSearch } from "./catalog-search";
 import { DeleteSetForm } from "./delete-set-form";
-import { VisibilityToggle } from "./visibility-toggle";
 
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -171,10 +170,10 @@ export default async function ManageSetPage({
         </Link>
       </div>
 
-      {/* Rename */}
+      {/* Set settings — name, description, visibility — saved together */}
       <form
-        action={renameCollectionSet}
-        className="mt-6 space-y-3 rounded-xl border p-4"
+        action={saveSetSettings}
+        className="mt-6 space-y-4 rounded-xl border p-4"
       >
         <input type="hidden" name="id" value={set.id} />
         <div className="space-y-1.5">
@@ -203,22 +202,26 @@ export default async function ManageSetPage({
             className={inputCls}
           />
         </div>
-        <div className="flex justify-end">
-          <Button type="submit">Save</Button>
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            name="is_public"
+            value="true"
+            defaultChecked={isPublic}
+            className="mt-0.5 h-4 w-4 accent-foreground"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Show on my public profile</span>
+            <span className="block text-xs text-muted-foreground">
+              Public sets appear on your shareable profile. Uncheck to keep this
+              set private.
+            </span>
+          </span>
+        </label>
+        <div className="flex justify-end border-t pt-3">
+          <Button type="submit">Save changes</Button>
         </div>
       </form>
-
-      {/* Visibility */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
-        <div>
-          <div className="text-sm font-medium">Visibility</div>
-          <p className="text-xs text-muted-foreground">
-            Public sets appear on your shareable profile. Private sets are only
-            visible to you.
-          </p>
-        </div>
-        <VisibilityToggle setId={set.id} isPublic={isPublic} />
-      </div>
 
       {isSeries ? (
         <SeriesManager
