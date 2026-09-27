@@ -6,13 +6,13 @@ import { gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
 import {
   renameCollectionSet,
-  deleteCollectionSet,
   removeCoinFromSet,
   addOwnCoinsToSet,
   removeOwnCoinFromSet,
 } from "../actions";
 import { Button } from "@/components/ui/button";
 import { CatalogCoinSearch } from "./catalog-search";
+import { DeleteSetForm } from "./delete-set-form";
 
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -182,15 +182,11 @@ export default async function ManageSetPage({
 
       {/* Delete set */}
       <div className="mt-8 border-t pt-4">
-        <form action={deleteCollectionSet}>
-          <input type="hidden" name="id" value={set.id} />
-          <button className="rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted">
-            Delete this set
-          </button>
-        </form>
+        <DeleteSetForm setId={set.id} isSeries={isSeries} />
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Deleting a set only removes the grouping — the coins you own stay in
-          your collection.
+          {isSeries
+            ? "Deleting this set removes the checklist. The coins you own stay in your collection."
+            : "Deleting this set also permanently deletes the coins in it from your collection. This can’t be undone."}
         </p>
       </div>
     </div>

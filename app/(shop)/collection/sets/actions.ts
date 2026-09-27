@@ -87,11 +87,37 @@ export async function renameCollectionSet(formData: FormData) {
   redirect(`/collection/sets/${id}`);
 }
 
-/** Delete a set (its slots cascade). */
+/**
+ * Delete a set. For a freeform set this also permanently deletes the coins it
+ * holds from the collection (the coins are what that set is). A series set is a
+ * catalog checklist, so its owned coins stay in the collection — only the
+ * checklist is removed. RLS scopes every delete to the owner.
+ */
 export async function deleteCollectionSet(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const supabase = await createClient();
+
+  const { data: set } = await supabase
+    .from("collection_sets")
+    .select("id, source_set_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Freeform set → delete its coins from the collection too.
+  if (set && !set.source_set_id) {
+    const { data: links } = await supabase
+      .from("collection_set_coins")
+      .select("collection_item_id")
+      .eq("collection_set_id", id);
+    const itemIds = (links ?? [])
+      .map((l) => l.collection_item_id as string | null)
+      .filter((v): v is string => !!v);
+    if (itemIds.length) {
+      await supabase.from("collection_items").delete().in("id", itemIds);
+    }
+  }
+
   await supabase.from("collection_sets").delete().eq("id", id);
   redirect("/collection");
 }
