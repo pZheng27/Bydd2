@@ -77,6 +77,22 @@ export async function createCollectionSet(formData: FormData) {
   redirect(`/collection?set=${created.id}`);
 }
 
+/**
+ * Toggle whether a set appears on the owner's public profile. RLS scopes the
+ * update to the owner. No-op if the is_public column isn't there yet.
+ */
+export async function setSetVisibility(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const isPublic = String(formData.get("is_public") ?? "") === "true";
+  const supabase = await createClient();
+  await supabase
+    .from("collection_sets")
+    .update({ is_public: isPublic })
+    .eq("id", id);
+  redirect(`/collection/sets/${id}`);
+}
+
 /** Rename a set (RLS scopes the update to the owner). */
 export async function renameCollectionSet(formData: FormData) {
   const id = String(formData.get("id") ?? "");

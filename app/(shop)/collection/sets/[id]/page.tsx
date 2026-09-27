@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CatalogCoinSearch } from "./catalog-search";
 import { DeleteSetForm } from "./delete-set-form";
+import { VisibilityToggle } from "./visibility-toggle";
 
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -46,6 +47,19 @@ export default async function ManageSetPage({
   if (!set) notFound();
 
   const isSeries = !!set.source_set_id;
+
+  // Visibility (tolerant: the is_public column may not exist yet). Default
+  // visible, matching the column default.
+  let isPublic = true;
+  {
+    const { data: vis } = await supabase
+      .from("collection_sets")
+      .select("is_public")
+      .eq("id", id)
+      .maybeSingle();
+    const v = (vis as { is_public?: boolean } | null)?.is_public;
+    if (typeof v === "boolean") isPublic = v;
+  }
 
   // Series set → catalog slots (owned/missing checklist).
   let seriesMembers: SlotCoin[] = [];
@@ -165,6 +179,18 @@ export default async function ManageSetPage({
         </div>
         <Button type="submit">Save</Button>
       </form>
+
+      {/* Visibility */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+        <div>
+          <div className="text-sm font-medium">Visibility</div>
+          <p className="text-xs text-muted-foreground">
+            Public sets appear on your shareable profile. Private sets are only
+            visible to you.
+          </p>
+        </div>
+        <VisibilityToggle setId={set.id} isPublic={isPublic} />
+      </div>
 
       {isSeries ? (
         <SeriesManager

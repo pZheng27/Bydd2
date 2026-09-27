@@ -1,0 +1,153 @@
+import { notFound } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { publicPhotoUrl } from "@/lib/photos";
+import { gradeLabel } from "@/lib/format";
+import { embeddedOne } from "@/lib/catalog";
+import { CoinTileImage } from "@/components/coin-tile";
+
+// A collector's public profile: the sets they've marked public, each shown as a
+// gallery of the coins they own in it. Read with the service-role client and
+// only display-safe fields (no email, prices, notes or cert numbers), filtered
+// to is_public sets — so nothing private is ever exposed.
+
+type PubItem = {
+  id: string;
+  title: string | null;
+  grade: number | null;
+  designation: string | null;
+  grading_service: string | null;
+  photos: string[] | null;
+};
+
+const ITEM_COLS = "id, title, grade, designation, grading_service, photos";
+
+export default async function PublicProfilePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const admin = createAdminClient();
+  if (!admin) notFound();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, display_name")
+    .eq("id", id)
+    .maybeSingle();
+  if (!profile) notFound();
+
+  const { data: collection } = await admin
+    .from("collections")
+    .select("id")
+    .eq("profile_id", id)
+    .maybeSingle();
+
+  let sets: { id: string; name: string; source_set_id: string | null }[] = [];
+  if (collection) {
+    const { data } = await admin
+      .from("collection_sets")
+      .select("id, name, source_set_id")
+      .eq("collection_id", collection.id)
+      .eq("is_public", true)
+      .order("created_at", { ascending: true });
+    sets = (data as typeof sets) ?? [];
+  }
+
+  const sections: { name: string; id: string; coins: PubItem[] }[] = [];
+  for (const s of sets) {
+    let coins: PubItem[] = [];
+    if (s.source_set_id) {
+      // Series set: the owned coins matching its catalog slots.
+      const { data: members } = await admin
+        .from("collection_set_members")
+        .select("coin_type_id")
+        .eq("collection_set_id", s.id);
+      const slotIds = (members ?? [])
+        .map((m) => m.coin_type_id as string | null)
+        .filter((v): v is string => !!v);
+      if (slotIds.length && collection) {
+        const { data: owned } = await admin
+          .from("collection_items")
+          .select(ITEM_COLS)
+          .eq("collection_id", collection.id)
+          .in("coin_type_id", slotIds);
+        coins = (owned as PubItem[]) ?? [];
+      }
+    } else {
+      // Freeform set: the coins the collector dropped into it.
+      const { data: rows } = await admin
+        .from("collection_set_coins")
+        .select(`sort_order, collection_item:collection_items(${ITEM_COLS})`)
+        .eq("collection_set_id", s.id);
+      coins = (((rows ?? []) as unknown) as {
+        sort_order: number | null;
+        collection_item: PubItem | PubItem[] | null;
+      }[])
+        .map((r) => ({ so: r.sort_order, it: embeddedOne<PubItem>(r.collection_item) }))
+        .filter((r): r is { so: number | null; it: PubItem } => !!r.it)
+        .sort((a, b) => (a.so ?? 1e9) - (b.so ?? 1e9))
+        .map((r) => r.it);
+    }
+    if (coins.length) sections.push({ id: s.id, name: s.name, coins });
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
+      <header className="border-b pb-6">
+        <div className="text-xs uppercase tracking-widest text-muted-foreground">
+          Collection
+        </div>
+        <h1 className="mt-1.5 text-3xl font-semibold tracking-tight">
+          {profile.display_name || "A collector"}
+        </h1>
+      </header>
+
+      {sections.length === 0 ? (
+        <p className="mt-10 text-sm text-muted-foreground">
+          No public sets to show yet.
+        </p>
+      ) : (
+        sections.map((sec) => (
+          <section key={sec.id} className="mt-10">
+            <h2 className="text-xl font-semibold tracking-tight">{sec.name}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {sec.coins.length} {sec.coins.length === 1 ? "coin" : "coins"}
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {sec.coins.map((c) => (
+                <div
+                  key={c.id}
+                  className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
+                >
+                  {c.photos?.[0] ? (
+                    <CoinTileImage
+                      src={publicPhotoUrl(c.photos[0])}
+                      alt={c.title ?? ""}
+                    />
+                  ) : (
+                    <div className="flex aspect-square w-full items-center justify-center bg-muted/50 text-xs text-muted-foreground">
+                      No photo
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="truncate text-sm font-medium tracking-tight">
+                      {c.title || "Untitled coin"}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {gradeLabel(c)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))
+      )}
+
+      <footer className="mt-16 border-t pt-6 text-xs text-muted-foreground">
+        Shared from Bydd
+      </footer>
+    </div>
+  );
+}
