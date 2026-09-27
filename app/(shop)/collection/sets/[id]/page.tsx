@@ -61,6 +61,18 @@ export default async function ManageSetPage({
     if (typeof v === "boolean") isPublic = v;
   }
 
+  // Description (tolerant: the column may not exist yet).
+  let description = "";
+  {
+    const { data: d } = await supabase
+      .from("collection_sets")
+      .select("description")
+      .eq("id", id)
+      .maybeSingle();
+    const v = (d as { description?: string | null } | null)?.description;
+    if (typeof v === "string") description = v;
+  }
+
   // Series set → catalog slots (owned/missing checklist).
   let seriesMembers: SlotCoin[] = [];
   let addableCatalog: CoinType[] = [];
@@ -162,10 +174,10 @@ export default async function ManageSetPage({
       {/* Rename */}
       <form
         action={renameCollectionSet}
-        className="mt-6 flex items-end gap-3 rounded-xl border p-4"
+        className="mt-6 space-y-3 rounded-xl border p-4"
       >
         <input type="hidden" name="id" value={set.id} />
-        <div className="flex-1 space-y-1.5">
+        <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="name">
             Set name
           </label>
@@ -177,7 +189,23 @@ export default async function ManageSetPage({
             className={inputCls}
           />
         </div>
-        <Button type="submit">Save</Button>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium" htmlFor="description">
+            Description{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            rows={2}
+            defaultValue={description}
+            placeholder="A short note about this set — what it is, what you're after."
+            className={inputCls}
+          />
+        </div>
+        <div className="flex justify-end">
+          <Button type="submit">Save</Button>
+        </div>
       </form>
 
       {/* Visibility */}

@@ -54,7 +54,26 @@ export default async function PublicProfilePage({
     sets = (data as typeof sets) ?? [];
   }
 
-  const sections: { name: string; id: string; coins: PubItem[] }[] = [];
+  // Optional set descriptions (tolerant: the column may not exist yet).
+  const descBySet = new Map<string, string>();
+  if (sets.length) {
+    const { data: descs } = await admin
+      .from("collection_sets")
+      .select("id, description")
+      .in(
+        "id",
+        sets.map((s) => s.id),
+      );
+    for (const d of (descs ?? []) as { id: string; description: string | null }[])
+      if (d.description) descBySet.set(d.id, d.description);
+  }
+
+  const sections: {
+    name: string;
+    id: string;
+    description: string;
+    coins: PubItem[];
+  }[] = [];
   for (const s of sets) {
     let coins: PubItem[] = [];
     if (s.source_set_id) {
@@ -89,7 +108,13 @@ export default async function PublicProfilePage({
         .sort((a, b) => (a.so ?? 1e9) - (b.so ?? 1e9))
         .map((r) => r.it);
     }
-    if (coins.length) sections.push({ id: s.id, name: s.name, coins });
+    if (coins.length)
+      sections.push({
+        id: s.id,
+        name: s.name,
+        description: descBySet.get(s.id) ?? "",
+        coins,
+      });
   }
 
   return (
@@ -109,11 +134,16 @@ export default async function PublicProfilePage({
         </p>
       ) : (
         sections.map((sec) => (
-          <section key={sec.id} className="mt-10">
+          <section key={sec.id} id={`set-${sec.id}`} className="mt-10 scroll-mt-20">
             <h2 className="text-xl font-semibold tracking-tight">{sec.name}</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {sec.coins.length} {sec.coins.length === 1 ? "coin" : "coins"}
             </p>
+            {sec.description && (
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                {sec.description}
+              </p>
+            )}
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {sec.coins.map((c) => (
                 <div

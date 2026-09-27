@@ -43,6 +43,20 @@ export default async function NewSetPage() {
         </div>
 
         <div className="space-y-1.5">
+          <label className="text-sm font-medium" htmlFor="description">
+            Description{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            rows={2}
+            placeholder="A short note about this set — what it is, what you're after."
+            className={inputCls}
+          />
+        </div>
+
+        <div className="space-y-1.5">
           <label className="text-sm font-medium" htmlFor="source_set_id">
             Template
           </label>

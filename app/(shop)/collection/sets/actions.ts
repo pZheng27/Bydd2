@@ -58,6 +58,16 @@ export async function createCollectionSet(formData: FormData) {
     .single();
   if (!created) return;
 
+  // Description saved separately so set creation still works if the column
+  // hasn't been added yet (the update is a no-op in that case).
+  const description = str(formData.get("description"));
+  if (description) {
+    await supabase
+      .from("collection_sets")
+      .update({ description })
+      .eq("id", created.id);
+  }
+
   if (sourceSetId) {
     const { data: members } = await supabase
       .from("set_members")
@@ -93,13 +103,21 @@ export async function setSetVisibility(formData: FormData) {
   redirect(`/collection/sets/${id}`);
 }
 
-/** Rename a set (RLS scopes the update to the owner). */
+/** Save a set's name and description (RLS scopes the update to the owner). */
 export async function renameCollectionSet(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const name = str(formData.get("name"));
   if (!id || !name) return;
   const supabase = await createClient();
   await supabase.from("collection_sets").update({ name }).eq("id", id);
+  // Separate update so the name still saves if the description column isn't
+  // there yet (that update is then a no-op).
+  if (formData.has("description")) {
+    await supabase
+      .from("collection_sets")
+      .update({ description: str(formData.get("description")) })
+      .eq("id", id);
+  }
   redirect(`/collection/sets/${id}`);
 }
 
