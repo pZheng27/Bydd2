@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { publicPhotoUrl } from "@/lib/photos";
 import { gradeLabel } from "@/lib/format";
 import { embeddedOne } from "@/lib/catalog";
-import { CoinTileImage } from "@/components/coin-tile";
+import { PublicCoinGrid } from "@/components/public-coin-grid";
 
 // A collector's public profile: the sets they've marked public, each shown as a
 // gallery of the coins they own in it. Read with the service-role client and
@@ -144,33 +144,14 @@ export default async function PublicProfilePage({
                 {sec.description}
               </p>
             )}
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {sec.coins.map((c) => (
-                <div
-                  key={c.id}
-                  className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
-                >
-                  {c.photos?.[0] ? (
-                    <CoinTileImage
-                      src={publicPhotoUrl(c.photos[0])}
-                      alt={c.title ?? ""}
-                    />
-                  ) : (
-                    <div className="flex aspect-square w-full items-center justify-center bg-muted/50 text-xs text-muted-foreground">
-                      No photo
-                    </div>
-                  )}
-                  <div className="p-3">
-                    <div className="truncate text-sm font-medium tracking-tight">
-                      {c.title || "Untitled coin"}
-                    </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {gradeLabel(c)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <PublicCoinGrid
+              coins={sec.coins.map((c) => ({
+                id: c.id,
+                title: c.title ?? "",
+                grade: gradeLabel(c),
+                photos: (c.photos ?? []).map(publicPhotoUrl),
+              }))}
+            />
           </section>
         ))
       )}
