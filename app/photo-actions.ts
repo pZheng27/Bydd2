@@ -6,6 +6,7 @@ import {
   compositeStoredPhotos,
   flattenStoredPhoto,
   rotateStoredPhoto,
+  type CompositeAdjust,
 } from "@/lib/enhance";
 
 async function isSignedIn(): Promise<boolean> {
@@ -60,6 +61,7 @@ export async function rotatePhoto(
 export async function composePhotos(
   paths: string[],
   background: string,
+  adjust: CompositeAdjust = {},
 ): Promise<string | null> {
   if (!Array.isArray(paths) || paths.length === 0) return null;
   if (!(await isSignedIn())) return null;
@@ -67,5 +69,16 @@ export async function composePhotos(
     background === "shadow" || /^#?[0-9a-fA-F]{6}$/.test(background ?? "")
       ? background
       : "shadow";
-  return compositeStoredPhotos(paths.filter(Boolean).slice(0, 8), bg);
+  const clamp = (v: unknown, lo: number, hi: number) =>
+    typeof v === "number" && Number.isFinite(v)
+      ? Math.min(hi, Math.max(lo, v))
+      : undefined;
+  const safe: CompositeAdjust = {
+    reflection: !!adjust?.reflection,
+    floorGlow: !!adjust?.floorGlow,
+    floorShadow: !!adjust?.floorShadow,
+    gap: clamp(adjust?.gap, 0, 60),
+    padding: clamp(adjust?.padding, 2, 40),
+  };
+  return compositeStoredPhotos(paths.filter(Boolean).slice(0, 8), bg, safe);
 }

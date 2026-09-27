@@ -28,6 +28,15 @@ type Slot = {
 
 const DEFAULT_BG = "#ffffff"; // where a cut-out coin is placed by default
 
+// Studio adjustments applied when generating the composite.
+type Adjust = {
+  reflection: boolean;
+  floorGlow: boolean;
+  floorShadow: boolean;
+  gap: number; // 0-60 (% of coin height between obverse & reverse)
+  padding: number; // 2-40 (% of the frame, top & bottom)
+};
+
 const SWATCHES = ["#ffffff", "#f4f4f5", "#111114", "#1e293b", "#3f3f46"];
 
 // The first two photos of a coin are its two sides, labelled by default.
@@ -113,6 +122,12 @@ export function PhotoUploader({
   const [compositePrimary, setCompositePrimary] = useState(false);
   const [bg, setBg] = useState<"shadow" | "plain">("shadow");
   const [color, setColor] = useState("#ffffff");
+  // Studio adjustments for the composite (map to the formatter's knobs).
+  const [reflection, setReflection] = useState(false);
+  const [floorGlow, setFloorGlow] = useState(false);
+  const [floorShadow, setFloorShadow] = useState(false);
+  const [gap, setGap] = useState(6); // % of coin height, obverse↔reverse
+  const [padding, setPadding] = useState(14); // % of frame, top & bottom
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -386,6 +401,7 @@ export function PhotoUploader({
     nextBg?: "shadow" | "plain",
     nextColor?: string,
     sourceSlots?: Slot[],
+    adjustOver?: Partial<Adjust>,
   ) {
     const paths = compositeSlots(sourceSlots).map((s) => s.cutout ?? s.original);
     if (paths.length === 0) return;
@@ -395,9 +411,17 @@ export function PhotoUploader({
     try {
       const useBg = nextBg ?? bg;
       const useColor = nextColor ?? color;
+      const adjust: Adjust = {
+        reflection: adjustOver?.reflection ?? reflection,
+        floorGlow: adjustOver?.floorGlow ?? floorGlow,
+        floorShadow: adjustOver?.floorShadow ?? floorShadow,
+        gap: adjustOver?.gap ?? gap,
+        padding: adjustOver?.padding ?? padding,
+      };
       const result = await composePhotos(
         paths,
         useBg === "shadow" ? "shadow" : useColor,
+        adjust,
       );
       if (result) {
         setComposite(result);
@@ -424,6 +448,17 @@ export function PhotoUploader({
     setBg(next);
     if (composite) makeComposite(next, color);
   }
+  // Apply an adjustment: update its state and, if a composite already exists,
+  // regenerate it with the new value.
+  function commitAdjust(over: Partial<Adjust>) {
+    if (over.reflection !== undefined) setReflection(over.reflection);
+    if (over.floorGlow !== undefined) setFloorGlow(over.floorGlow);
+    if (over.floorShadow !== undefined) setFloorShadow(over.floorShadow);
+    if (over.gap !== undefined) setGap(over.gap);
+    if (over.padding !== undefined) setPadding(over.padding);
+    if (composite) makeComposite(undefined, undefined, undefined, over);
+  }
+
   function chooseColor(next: string) {
     setColor(next);
     if (composite && bg === "plain") makeComposite("plain", next);
@@ -796,45 +831,139 @@ export function PhotoUploader({
         </div>
 
         {slots.length > 1 && (
-          <div className="space-y-2">
-            <div className="relative w-full max-w-xs">
-              {composite ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={urlOf(composite)}
-                    alt="Composite"
-                    onClick={() => setZoom(urlOf(composite))}
-                    className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            {/* The generated composite */}
+            <div className="space-y-2">
+              <div className="relative w-full max-w-xs">
+                {composite ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={urlOf(composite)}
+                      alt="Composite"
+                      onClick={() => setZoom(urlOf(composite))}
+                      className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
+                    />
+                    {compositePrimary && (
+                      <span className="absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
+                        Primary
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex aspect-square w-full items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+                    Your composite will appear here
+                  </div>
+                )}
+              </div>
+              {composite && (
+                <label className="flex max-w-xs items-start gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={compositePrimary}
+                    onChange={(e) => setCompositePrimary(e.target.checked)}
+                    disabled={disabled}
+                    className="mt-0.5"
                   />
-                  {compositePrimary && (
-                    <span className="absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
-                      Primary
-                    </span>
-                  )}
-                </>
-              ) : (
-                <div className="flex aspect-square w-full items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                  Your composite will appear here
-                </div>
+                  <span>
+                    Use the composite as the listing&apos;s main photo.{" "}
+                    {compositePrimary
+                      ? "Your uploaded photos are kept alongside it."
+                      : "Your first uploaded photo will be the main image instead."}
+                  </span>
+                </label>
               )}
             </div>
+
+            {/* Studio adjustments — to the right of the generated composite */}
             {composite && (
-              <label className="flex max-w-xs items-start gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={compositePrimary}
-                  onChange={(e) => setCompositePrimary(e.target.checked)}
-                  disabled={disabled}
-                  className="mt-0.5"
-                />
-                <span>
-                  Use the composite as the listing&apos;s main photo.{" "}
-                  {compositePrimary
-                    ? "Your uploaded photos are kept alongside it."
-                    : "Your first uploaded photo will be the main image instead."}
-                </span>
-              </label>
+              <div className="space-y-3 sm:w-56">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Adjust
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={reflection}
+                    disabled={disabled}
+                    onChange={(e) => commitAdjust({ reflection: e.target.checked })}
+                    className="h-4 w-4 accent-foreground"
+                  />
+                  Mirror reflection
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={floorGlow}
+                    disabled={disabled}
+                    onChange={(e) => commitAdjust({ floorGlow: e.target.checked })}
+                    className="h-4 w-4 accent-foreground"
+                  />
+                  Floor glow
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={floorShadow}
+                    disabled={disabled}
+                    onChange={(e) => commitAdjust({ floorShadow: e.target.checked })}
+                    className="h-4 w-4 accent-foreground"
+                  />
+                  Floor shadow
+                </label>
+
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Gap (obverse ↔ reverse)</span>
+                    <span className="tabular-nums">{gap}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={60}
+                    value={gap}
+                    disabled={disabled}
+                    onChange={(e) => setGap(+e.target.value)}
+                    onPointerUp={(e) =>
+                      commitAdjust({ gap: +(e.currentTarget as HTMLInputElement).value })
+                    }
+                    onKeyUp={(e) =>
+                      commitAdjust({ gap: +(e.currentTarget as HTMLInputElement).value })
+                    }
+                    className="mt-1 w-full accent-foreground"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Top &amp; bottom padding</span>
+                    <span className="tabular-nums">{padding}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={2}
+                    max={40}
+                    value={padding}
+                    disabled={disabled}
+                    onChange={(e) => setPadding(+e.target.value)}
+                    onPointerUp={(e) =>
+                      commitAdjust({
+                        padding: +(e.currentTarget as HTMLInputElement).value,
+                      })
+                    }
+                    onKeyUp={(e) =>
+                      commitAdjust({
+                        padding: +(e.currentTarget as HTMLInputElement).value,
+                      })
+                    }
+                    className="mt-1 w-full accent-foreground"
+                  />
+                </div>
+
+                {busy === "compose" && (
+                  <div className="text-xs text-muted-foreground">Updating…</div>
+                )}
+              </div>
             )}
           </div>
         )}

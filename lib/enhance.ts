@@ -135,13 +135,27 @@ export async function rotateStoredPhoto(
 }
 
 /**
- * Composite one or two stored photos (front[, back]) onto a background —
- * "shadow" (the studio look) or a solid "#RRGGBB". Returns the new PNG object
- * path, or null on any failure. Never throws.
+ * Studio adjustments for a composite. All optional; each maps to the formatter's
+ * /composite knobs (reflection / floor glow / floor shadow, the obverse–reverse
+ * gap %, and the top & bottom padding %).
+ */
+export type CompositeAdjust = {
+  reflection?: boolean;
+  floorGlow?: boolean;
+  floorShadow?: boolean;
+  gap?: number; // 0-60 (% of coin height)
+  padding?: number; // 2-40 (% of the frame, top & bottom)
+};
+
+/**
+ * Composite one or more stored photos (front[, back, …]) onto a background —
+ * "shadow" (the studio look) or a solid "#RRGGBB" — with optional adjustments.
+ * Returns the new PNG object path, or null on any failure. Never throws.
  */
 export async function compositeStoredPhotos(
   paths: string[],
   background: string,
+  adjust: CompositeAdjust = {},
 ): Promise<string | null> {
   if (!formatterConfigured() || paths.length === 0) return null;
   const admin = createAdminClient();
@@ -158,6 +172,11 @@ export async function compositeStoredPhotos(
     }
     if (n === 0) return null;
     form.append("background", background || "shadow");
+    form.append("reflection", adjust.reflection ? "true" : "false");
+    form.append("floor_glow", adjust.floorGlow ? "true" : "false");
+    form.append("floor_shadow", adjust.floorShadow ? "true" : "false");
+    if (adjust.gap != null) form.append("gap", String(adjust.gap));
+    if (adjust.padding != null) form.append("padding", String(adjust.padding));
     const res = await fetch(`${FORMATTER_URL}/composite`, {
       method: "POST",
       headers: { "X-API-Key": FORMATTER_API_KEY as string },
