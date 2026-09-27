@@ -108,8 +108,9 @@ export function PhotoUploader({
 
   const [slots, setSlots] = useState<Slot[]>([]);
   const [composite, setComposite] = useState<string | null>(null);
-  // Whether the composite is the listing's main (first) photo. On by default.
-  const [compositePrimary, setCompositePrimary] = useState(true);
+  // Whether the composite is the listing's main (first) photo. Off by default —
+  // the first uploaded photo stays primary unless the user opts in.
+  const [compositePrimary, setCompositePrimary] = useState(false);
   const [bg, setBg] = useState<"shadow" | "plain">("shadow");
   const [color, setColor] = useState("#ffffff");
   const [busy, setBusy] = useState<string | null>(null);

@@ -158,6 +158,29 @@ export async function linkCollectionItemToCatalog(formData: FormData) {
   redirect(`/collection/${id}`);
 }
 
+/** Edit a coin's details (RLS scopes the update to the owner). */
+export async function updateCollectionItem(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  const grade = toNum(formData.get("grade"));
+  const gradeVal =
+    grade != null && grade >= 1 && grade <= 70 ? Math.round(grade) : null;
+  await supabase
+    .from("collection_items")
+    .update({
+      title: str(formData.get("title")) ?? "Untitled coin",
+      grade: gradeVal,
+      grading_service: str(formData.get("grading_service")),
+      cert_number: str(formData.get("cert_number")),
+      acquired_price_cents: toCents(formData.get("acquired_price")),
+      notes: str(formData.get("notes")),
+    })
+    .eq("id", id);
+  const set = str(formData.get("set"));
+  redirect(set ? `/collection?set=${set}` : `/collection/${id}`);
+}
+
 /** Remove a coin from the collection and its photos (originals + enhanced). */
 export async function deleteCollectionItem(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -177,7 +200,8 @@ export async function deleteCollectionItem(formData: FormData) {
       ...(row.photos_original ?? []),
     ]);
   }
-  redirect("/collection");
+  const set = str(formData.get("set"));
+  redirect(set ? `/collection?set=${set}` : "/collection");
 }
 
 /**
