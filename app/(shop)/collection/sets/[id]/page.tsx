@@ -1,23 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getCoinTypes,
-  groupBySeries,
-  embeddedOne,
-  type CoinType,
-} from "@/lib/catalog";
+import { getCoinTypes, embeddedOne, type CoinType } from "@/lib/catalog";
 import { gradeLabel } from "@/lib/format";
 import { publicPhotoUrl } from "@/lib/photos";
 import {
   renameCollectionSet,
   deleteCollectionSet,
-  addCoinsToSet,
   removeCoinFromSet,
   addOwnCoinsToSet,
   removeOwnCoinFromSet,
 } from "../actions";
 import { Button } from "@/components/ui/button";
+import { CatalogCoinSearch } from "./catalog-search";
 
 const inputCls =
   "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring";
@@ -253,35 +248,7 @@ function SeriesManager({
             Every catalog coin is already in this set.
           </p>
         ) : (
-          <form action={addCoinsToSet} className="mt-2 space-y-4">
-            <input type="hidden" name="set_id" value={setId} />
-            <div className="max-h-80 space-y-4 overflow-y-auto rounded-xl border p-4">
-              {groupBySeries(addable).map(([series, list]) => (
-                <div key={series}>
-                  <div className="text-xs font-semibold text-muted-foreground">
-                    {series}
-                  </div>
-                  <div className="mt-1.5 grid grid-cols-1 gap-1 sm:grid-cols-2">
-                    {list.map((c) => (
-                      <label
-                        key={c.id}
-                        className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-muted/50"
-                      >
-                        <input
-                          type="checkbox"
-                          name="coin_type_id"
-                          value={c.id}
-                          className="h-4 w-4"
-                        />
-                        <span>{c.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button type="submit">Add selected</Button>
-          </form>
+          <CatalogCoinSearch setId={setId} addable={addable} />
         )}
       </div>
     </>
