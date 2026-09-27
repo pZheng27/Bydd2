@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Paths reachable without being signed in: the public marketplace (the home
 // page and individual listings) plus the auth screens. Everything else — buying,
 // offers, watchlist, messages, and the collector/dealer areas — needs sign-in.
-const PUBLIC_PATHS = ["/", "/market", "/login", "/auth", "/u"];
+const PUBLIC_PATHS = ["/", "/market", "/login", "/auth", "/u", "/collections"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));

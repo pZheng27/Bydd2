@@ -93,7 +93,7 @@ export default async function PublicProfilePage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
+    <div className="mx-auto max-w-5xl">
       <header className="border-b pb-6">
         <div className="text-xs uppercase tracking-widest text-muted-foreground">
           Collection

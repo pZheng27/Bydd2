@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { RoleNav } from "@/components/role-nav";
+import { TopNav } from "@/components/top-nav";
 import { signOut } from "@/app/actions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -40,7 +40,7 @@ export async function AppHeader({ email }: { email: string | null }) {
         <Link href="/" className="font-semibold">
           Bydd
         </Link>
-        {signedIn && <RoleNav />}
+        <TopNav signedIn={signedIn} />
       </div>
       <div className="flex items-center gap-3 text-sm">
         {signedIn ? (
