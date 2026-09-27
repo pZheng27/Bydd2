@@ -6,6 +6,7 @@ import { embeddedOne } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { SetChecklist, type ChecklistTile } from "@/components/set-checklist";
+import { CoinTileImage } from "@/components/coin-tile";
 
 type CustomSet = { id: string; name: string; source_set_id: string | null };
 
@@ -227,25 +228,18 @@ async function CustomSetGrid({
           .
         </div>
       ) : (
-        // Masonry gallery: each coin shows at its natural shape (wide two-coin
-        // shots stay wide, single coins stay square) so there are no letterbox
-        // bands, no cropping, and no wasted space.
-        <div className="mt-6 columns-2 gap-4 sm:columns-3 lg:columns-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {coins.map((it) => (
             <Link
               key={it.id}
               href={`/collection/${it.id}`}
-              className="group mb-4 block break-inside-avoid overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow duration-200 hover:shadow-md"
+              className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               {it.photos?.[0] ? (
-                <div className="overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={publicPhotoUrl(it.photos[0])}
-                    alt={it.title ?? ""}
-                    className="w-full transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
-                </div>
+                <CoinTileImage
+                  src={publicPhotoUrl(it.photos[0])}
+                  alt={it.title ?? ""}
+                />
               ) : (
                 <div className="flex aspect-square w-full items-center justify-center bg-muted/50 text-xs text-muted-foreground">
                   No photo

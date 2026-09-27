@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { CoinTileImage } from "@/components/coin-tile";
 
 export type ChecklistTile = {
   id: string;
@@ -55,31 +56,15 @@ export function SetChecklist({
               href={t.itemHref}
               className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="relative aspect-square overflow-hidden bg-muted/40">
+              <div className="relative">
                 {t.photoUrl ? (
-                  <>
-                    {/* Blurred copy of the photo fills the tile so the letterbox
-                        matches the photo (no light frame around dark coins). */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={t.photoUrl}
-                      alt=""
-                      aria-hidden
-                      className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl"
-                    />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={t.photoUrl}
-                      alt={t.name}
-                      className="relative h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  </>
+                  <CoinTileImage src={t.photoUrl} alt={t.name} />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                  <div className="flex aspect-square w-full items-center justify-center bg-muted/40 text-xs text-muted-foreground">
                     No photo
                   </div>
                 )}
-                <span className="absolute left-2.5 top-2.5 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur">
+                <span className="absolute left-2.5 top-2.5 z-10 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur">
                   ✓ Owned
                 </span>
               </div>
