@@ -55,14 +55,25 @@ export function SetChecklist({
               href={t.itemHref}
               className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-muted/40 to-muted/70 p-3">
+              <div className="relative aspect-square overflow-hidden bg-muted/40">
                 {t.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={t.photoUrl}
-                    alt={t.name}
-                    className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-                  />
+                  <>
+                    {/* Blurred copy of the photo fills the tile so the letterbox
+                        matches the photo (no light frame around dark coins). */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={t.photoUrl}
+                      alt=""
+                      aria-hidden
+                      className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl"
+                    />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={t.photoUrl}
+                      alt={t.name}
+                      className="relative h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  </>
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
                     No photo

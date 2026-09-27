@@ -235,12 +235,21 @@ async function CustomSetGrid({
               className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               {it.photos?.[0] ? (
-                <div className="aspect-square overflow-hidden bg-gradient-to-b from-muted/40 to-muted/70 p-3">
+                <div className="relative aspect-square overflow-hidden">
+                  {/* Blurred copy of the photo fills the tile so the letterbox
+                      matches the photo (no light frame around dark coins). */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={publicPhotoUrl(it.photos[0])}
+                    alt=""
+                    aria-hidden
+                    className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl"
+                  />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={publicPhotoUrl(it.photos[0])}
                     alt={it.title ?? ""}
-                    className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                    className="relative h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 </div>
               ) : (
