@@ -206,14 +206,14 @@ export default async function CollectionsBrowsePage() {
                 <div className="truncate text-base font-semibold tracking-tight">
                   {c.title}
                 </div>
-                {c.description ? (
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                    {c.description}
-                  </p>
-                ) : null}
-                <div className="mt-1 truncate text-[11px] text-muted-foreground/80">
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">
                   {c.username}
                 </div>
+                {c.description && (
+                  <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+                    {c.description}
+                  </p>
+                )}
               </div>
             </Link>
           ))}

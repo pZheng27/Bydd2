@@ -185,6 +185,7 @@ type OwnItem = {
   grade: number | null;
   designation: string | null;
   grading_service: string | null;
+  notes: string | null;
   photos: string[] | null;
 };
 
@@ -206,7 +207,7 @@ async function CustomSetGrid({
   const { data: rows } = await supabase
     .from("collection_set_coins")
     .select(
-      "sort_order, collection_item:collection_items(id, title, grade, designation, grading_service, photos)",
+      "sort_order, collection_item:collection_items(id, title, grade, designation, grading_service, notes, photos)",
     )
     .eq("collection_set_id", setId);
 
@@ -248,6 +249,7 @@ async function CustomSetGrid({
               id={it.id}
               title={it.title ?? ""}
               grade={gradeLabel(it)}
+              description={it.notes ?? ""}
               photo={it.photos?.[0] ? publicPhotoUrl(it.photos[0]) : null}
               setId={setId}
             />

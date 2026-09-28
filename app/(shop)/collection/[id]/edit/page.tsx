@@ -137,7 +137,7 @@ export default async function EditCollectionItemPage({
           </Field>
         </div>
 
-        <Field label="Notes" name="notes" hint="Optional">
+        <Field label="Description" name="notes" hint="Optional — shows on the coin's card in your collection">
           <textarea
             id="notes"
             name="notes"

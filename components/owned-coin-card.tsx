@@ -14,15 +14,19 @@ export function OwnedCoinCard({
   id,
   title,
   grade,
+  description,
   photo,
   setId,
 }: {
   id: string;
   title: string;
   grade: string;
+  description?: string;
   photo: string | null;
   setId: string;
 }) {
+  const hasGrade = !!grade && grade !== "—";
+  const desc = description?.trim();
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <Link href={`/collection/${id}`} className="block">
@@ -37,7 +41,16 @@ export function OwnedCoinCard({
           <div className="truncate text-sm font-medium tracking-tight">
             {title || "Untitled coin"}
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{grade}</div>
+          {desc ? (
+            <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+              {desc}
+            </div>
+          ) : null}
+          {hasGrade ? (
+            <div className="mt-0.5 text-xs text-muted-foreground/80">{grade}</div>
+          ) : !desc ? (
+            <div className="mt-0.5 text-xs text-muted-foreground">—</div>
+          ) : null}
         </div>
       </Link>
 
