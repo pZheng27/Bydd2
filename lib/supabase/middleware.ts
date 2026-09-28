@@ -17,6 +17,9 @@ const PUBLIC_PATHS = [
 ];
 
 function isPublic(pathname: string) {
+  // Google Search Console site-verification files (google<token>.html at root)
+  // must be reachable by Google without a sign-in redirect.
+  if (/^\/google[0-9a-z]+\.html$/i.test(pathname)) return true;
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
