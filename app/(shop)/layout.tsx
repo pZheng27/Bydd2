@@ -4,6 +4,7 @@ import { aiConfigured } from "@/lib/anthropic";
 import { AppHeader } from "@/components/app-header";
 import { CollectorNav } from "@/components/collector-nav";
 import { BuyerAgentWidget } from "@/components/buyer-agent-widget";
+import { getMarketplaceEnabled } from "@/lib/app-settings";
 
 export default async function CollectorLayout({
   children,
@@ -32,12 +33,14 @@ export default async function CollectorLayout({
       );
   }
 
+  const marketplaceEnabled = await getMarketplaceEnabled();
+
   return (
     <div className="min-h-screen">
       <AppHeader email={profile?.email ?? user.email ?? ""} />
-      <CollectorNav />
+      <CollectorNav marketplaceEnabled={marketplaceEnabled} />
       <main className="p-6">{children}</main>
-      <BuyerAgentWidget configured={aiConfigured()} />
+      {marketplaceEnabled && <BuyerAgentWidget configured={aiConfigured()} />}
     </div>
   );
 }
