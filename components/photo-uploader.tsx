@@ -10,11 +10,14 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import {
   beautifyPhoto,
-  composePhotos,
   flattenPhoto,
   rotatePhoto,
 } from "@/app/photo-actions";
 import { Lightbox } from "@/components/lightbox";
+import {
+  CompositeCanvas,
+  type CompositeCanvasHandle,
+} from "@/components/composite-canvas";
 
 type Slot = {
   id: string;
@@ -123,7 +126,9 @@ export function PhotoUploader({
   const [bg, setBg] = useState<"shadow" | "plain">("shadow");
   const [color, setColor] = useState("#ffffff");
   // Studio adjustments for the composite (map to the formatter's knobs).
-  const [reflection, setReflection] = useState(false);
+  // Reflection is on by default because the default background is the studio
+  // "shadow" look.
+  const [reflection, setReflection] = useState(true);
   const [floorGlow, setFloorGlow] = useState(false);
   const [floorShadow, setFloorShadow] = useState(false);
   const [gap, setGap] = useState(6); // % of coin height, obverse↔reverse
@@ -137,6 +142,7 @@ export function PhotoUploader({
   const [zoom, setZoom] = useState<string | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragIndex = useRef<number | null>(null);
+  const canvasRef = useRef<CompositeCanvasHandle>(null);
   // Free-angle drag-to-spin: live preview angle (plus the cut-out's natural
   // size, so the preview can scale to fit) for the slot being dragged.
   const [spin, setSpin] = useState<{
@@ -252,9 +258,8 @@ export function PhotoUploader({
           : s,
       );
       setSlots(updated);
-      // Keep an existing composite on screen (and in sync) after a late
-      // background removal instead of clearing it.
-      if (composite) await makeComposite(undefined, undefined, updated);
+      // The live composite canvas reads each coin's cut-out, so it updates on
+      // its own — no re-generation needed here.
     } finally {
       setBusy(null);
     }
@@ -305,9 +310,8 @@ export function PhotoUploader({
           : s,
       );
       setSlots(updated);
-      // A rotation does change the composite, so refresh it in place rather
-      // than making it disappear.
-      if (composite) await makeComposite(undefined, undefined, updated);
+      // The live composite canvas reads each coin's cut-out, so a rotation
+      // shows there on its own.
     } finally {
       setBusy(null);
     }
@@ -397,71 +401,100 @@ export function PhotoUploader({
     });
   }
 
-  async function makeComposite(
-    nextBg?: "shadow" | "plain",
-    nextColor?: string,
-    sourceSlots?: Slot[],
-    adjustOver?: Partial<Adjust>,
-  ) {
-    const paths = compositeSlots(sourceSlots).map((s) => s.cutout ?? s.original);
-    if (paths.length === 0) return;
+  // Cut out the composite coins (the live canvas needs transparent cut-outs).
+  // Runs in parallel and writes state once, so nothing races.
+  async function ensureComposite() {
+    const need = compositeSlots().filter((s) => !s.cutout);
+    if (!need.length) return;
     setBusy("compose");
     setError(null);
     setNote(null);
     try {
-      const useBg = nextBg ?? bg;
-      const useColor = nextColor ?? color;
-      const adjust: Adjust = {
-        reflection: adjustOver?.reflection ?? reflection,
-        floorGlow: adjustOver?.floorGlow ?? floorGlow,
-        floorShadow: adjustOver?.floorShadow ?? floorShadow,
-        gap: adjustOver?.gap ?? gap,
-        padding: adjustOver?.padding ?? padding,
-      };
-      const result = await composePhotos(
-        paths,
-        useBg === "shadow" ? "shadow" : useColor,
-        adjust,
+      const results = await Promise.all(
+        need.map(async (s) => {
+          const cut = await beautifyPhoto(s.original);
+          const colored = cut ? await flattenPhoto(cut, DEFAULT_BG) : null;
+          return { id: s.id, cut, colored };
+        }),
       );
-      if (result) {
-        setComposite(result);
-      } else {
-        setComposite(null);
-        setError("Couldn't process the photo(s). Please try again.");
-      }
+      if (!results.some((r) => r.cut))
+        setError(
+          "Those photos' backgrounds couldn't be removed — a slabbed coin is kept in its holder.",
+        );
+      setSlots((prev) =>
+        prev.map((s) => {
+          const r = results.find((x) => x.id === s.id);
+          return r?.cut
+            ? {
+                ...s,
+                baseCutout: r.cut,
+                cutout: r.cut,
+                angle: 0,
+                bg: DEFAULT_BG,
+                colored: r.colored ?? r.cut,
+              }
+            : s;
+        }),
+      );
     } finally {
       setBusy(null);
     }
   }
 
-  function onMainCompose() {
-    if (slots.length > 2) {
+  /** Enter composite mode: pick the two sides (>2 photos), then cut them out. */
+  async function onMainCompose() {
+    if (slots.length > 2 && (!obvId || !revId)) {
       if (!obvId) setObvId(slots[0].id);
       if (!revId) setRevId(slots[1].id);
       setPicking(true);
-    } else {
-      makeComposite();
+      return;
+    }
+    await ensureComposite();
+  }
+
+  /** Bake the live canvas at full resolution and store it as the composite. */
+  async function saveComposite() {
+    setBusy("compose");
+    setError(null);
+    setNote(null);
+    try {
+      const blob = await canvasRef.current?.export2048();
+      if (!blob) {
+        setError("Couldn't build the composite. Please try again.");
+        return;
+      }
+      const path = `${folder}/${crypto.randomUUID()}.png`;
+      const { error } = await supabase.storage
+        .from("item-photos")
+        .upload(path, blob, { contentType: "image/png", upsert: false });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setComposite(path);
+    } finally {
+      setBusy(null);
     }
   }
 
   function chooseBg(next: "shadow" | "plain") {
     setBg(next);
-    if (composite) makeComposite(next, color);
+    // The studio "shadow" look reads best with a reflection, so turn it on by
+    // default whenever it's chosen.
+    if (next === "shadow") setReflection(true);
   }
-  // Apply an adjustment: update its state and, if a composite already exists,
-  // regenerate it with the new value.
+
+  function chooseColor(next: string) {
+    setColor(next);
+  }
+
+  // Adjustments update state only — the canvas re-renders live, no server call.
   function commitAdjust(over: Partial<Adjust>) {
     if (over.reflection !== undefined) setReflection(over.reflection);
     if (over.floorGlow !== undefined) setFloorGlow(over.floorGlow);
     if (over.floorShadow !== undefined) setFloorShadow(over.floorShadow);
     if (over.gap !== undefined) setGap(over.gap);
     if (over.padding !== undefined) setPadding(over.padding);
-    if (composite) makeComposite(undefined, undefined, undefined, over);
-  }
-
-  function chooseColor(next: string) {
-    setColor(next);
-    if (composite && bg === "plain") makeComposite("plain", next);
   }
 
   const photoPaths = slots.map((s) => slotDisplay(s));
@@ -474,16 +507,14 @@ export function PhotoUploader({
   // Empty state: labelled Obverse/Reverse boxes for the first two photos.
   const placeholders = slots.length < 2 ? SLOT_LABELS.slice(slots.length) : [];
 
-  const composeLabel =
-    busy === "compose"
-      ? "Working…"
-      : composite
-        ? "Update composite"
-        : slots.length > 2
-          ? "Create composite…"
-          : slots.length > 1
-            ? "Create composite"
-            : "Apply background";
+  // The coins that go into the composite, and whether they're cut out (the live
+  // canvas needs transparent cut-outs to draw).
+  const compositeCoins = compositeSlots();
+  const compositeReady =
+    slots.length > 1 &&
+    !picking &&
+    compositeCoins.length >= 2 &&
+    compositeCoins.every((s) => !!s.cutout);
 
   /** Per-photo background options: None + Original (corner colour) + swatches + hex. */
   function bgOptions(s: Slot) {
@@ -775,18 +806,7 @@ export function PhotoUploader({
                 )}
               </div>
 
-              {!picking && (
-                <button
-                  type="button"
-                  onClick={onMainCompose}
-                  disabled={disabled}
-                  className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
-                >
-                  {composeLabel}
-                </button>
-              )}
-
-              {picking && (
+              {picking ? (
                 <div className="space-y-3 rounded-lg border p-3">
                   <div className="text-sm font-medium">
                     Which two sides go in the composite?
@@ -806,14 +826,14 @@ export function PhotoUploader({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         setPicking(false);
-                        makeComposite();
+                        await ensureComposite();
                       }}
                       disabled={disabled || !obvId || !revId || obvId === revId}
                       className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
                     >
-                      {busy === "compose" ? "Working…" : "Create composite"}
+                      {busy === "compose" ? "Preparing…" : "Continue"}
                     </button>
                     <button
                       type="button"
@@ -825,35 +845,51 @@ export function PhotoUploader({
                     </button>
                   </div>
                 </div>
-              )}
+              ) : !compositeReady ? (
+                <button
+                  type="button"
+                  onClick={onMainCompose}
+                  disabled={disabled}
+                  className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
+                >
+                  {busy === "compose" ? "Preparing…" : "Create composite"}
+                </button>
+              ) : null}
             </div>
           )}
         </div>
 
-        {slots.length > 1 && (
+        {compositeReady && (
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            {/* The generated composite */}
+            {/* Live composite — renders in the browser, updates instantly */}
             <div className="space-y-2">
-              <div className="relative w-full max-w-xs">
-                {composite ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={urlOf(composite)}
-                      alt="Composite"
-                      onClick={() => setZoom(urlOf(composite))}
-                      className="aspect-square w-full cursor-zoom-in rounded-lg border bg-muted object-contain"
-                    />
-                    {compositePrimary && (
-                      <span className="absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
-                        Primary
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex aspect-square w-full items-center justify-center rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                    Your composite will appear here
-                  </div>
+              <div className="w-full max-w-xs">
+                <CompositeCanvas
+                  ref={canvasRef}
+                  coinUrls={compositeCoins.map((s) => urlOf(s.cutout as string))}
+                  background={bg === "shadow" ? "shadow" : color}
+                  reflection={reflection}
+                  floorGlow={floorGlow}
+                  floorShadow={floorShadow}
+                  gap={gap}
+                  padding={padding}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={saveComposite}
+                  disabled={disabled}
+                  className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
+                >
+                  {busy === "compose"
+                    ? "Saving…"
+                    : composite
+                      ? "Update composite"
+                      : "Save composite"}
+                </button>
+                {composite && (
+                  <span className="text-xs text-muted-foreground">Saved ✓</span>
                 )}
               </div>
               {composite && (
@@ -875,96 +911,74 @@ export function PhotoUploader({
               )}
             </div>
 
-            {/* Studio adjustments — to the right of the generated composite */}
-            {composite && (
-              <div className="space-y-3 sm:w-56">
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Adjust
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={reflection}
-                    disabled={disabled}
-                    onChange={(e) => commitAdjust({ reflection: e.target.checked })}
-                    className="h-4 w-4 accent-foreground"
-                  />
-                  Mirror reflection
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={floorGlow}
-                    disabled={disabled}
-                    onChange={(e) => commitAdjust({ floorGlow: e.target.checked })}
-                    className="h-4 w-4 accent-foreground"
-                  />
-                  Floor glow
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={floorShadow}
-                    disabled={disabled}
-                    onChange={(e) => commitAdjust({ floorShadow: e.target.checked })}
-                    className="h-4 w-4 accent-foreground"
-                  />
-                  Floor shadow
-                </label>
-
-                <div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Gap (obverse ↔ reverse)</span>
-                    <span className="tabular-nums">{gap}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={60}
-                    value={gap}
-                    disabled={disabled}
-                    onChange={(e) => setGap(+e.target.value)}
-                    onPointerUp={(e) =>
-                      commitAdjust({ gap: +(e.currentTarget as HTMLInputElement).value })
-                    }
-                    onKeyUp={(e) =>
-                      commitAdjust({ gap: +(e.currentTarget as HTMLInputElement).value })
-                    }
-                    className="mt-1 w-full accent-foreground"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Top &amp; bottom padding</span>
-                    <span className="tabular-nums">{padding}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={2}
-                    max={40}
-                    value={padding}
-                    disabled={disabled}
-                    onChange={(e) => setPadding(+e.target.value)}
-                    onPointerUp={(e) =>
-                      commitAdjust({
-                        padding: +(e.currentTarget as HTMLInputElement).value,
-                      })
-                    }
-                    onKeyUp={(e) =>
-                      commitAdjust({
-                        padding: +(e.currentTarget as HTMLInputElement).value,
-                      })
-                    }
-                    className="mt-1 w-full accent-foreground"
-                  />
-                </div>
-
-                {busy === "compose" && (
-                  <div className="text-xs text-muted-foreground">Updating…</div>
-                )}
+            {/* Studio adjustments — to the right of the composite, live */}
+            <div className="space-y-3 sm:w-56">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Adjust — changes show instantly
               </div>
-            )}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={reflection}
+                  disabled={disabled}
+                  onChange={(e) => commitAdjust({ reflection: e.target.checked })}
+                  className="h-4 w-4 accent-foreground"
+                />
+                Mirror reflection
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={floorGlow}
+                  disabled={disabled}
+                  onChange={(e) => commitAdjust({ floorGlow: e.target.checked })}
+                  className="h-4 w-4 accent-foreground"
+                />
+                Floor glow
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={floorShadow}
+                  disabled={disabled}
+                  onChange={(e) => commitAdjust({ floorShadow: e.target.checked })}
+                  className="h-4 w-4 accent-foreground"
+                />
+                Floor shadow
+              </label>
+
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Gap (obverse ↔ reverse)</span>
+                  <span className="tabular-nums">{gap}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={60}
+                  value={gap}
+                  disabled={disabled}
+                  onChange={(e) => setGap(+e.target.value)}
+                  className="mt-1 w-full accent-foreground"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Top &amp; bottom padding</span>
+                  <span className="tabular-nums">{padding}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={2}
+                  max={40}
+                  value={padding}
+                  disabled={disabled}
+                  onChange={(e) => setPadding(+e.target.value)}
+                  className="mt-1 w-full accent-foreground"
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>
