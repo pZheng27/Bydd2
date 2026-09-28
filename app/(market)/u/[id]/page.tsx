@@ -16,10 +16,12 @@ type PubItem = {
   grade: number | null;
   designation: string | null;
   grading_service: string | null;
+  notes: string | null;
   photos: string[] | null;
 };
 
-const ITEM_COLS = "id, title, grade, designation, grading_service, photos";
+const ITEM_COLS =
+  "id, title, grade, designation, grading_service, notes, photos";
 
 export default async function PublicProfilePage({
   params,
@@ -149,6 +151,7 @@ export default async function PublicProfilePage({
                 id: c.id,
                 title: c.title ?? "",
                 grade: gradeLabel(c),
+                description: c.notes ?? "",
                 photos: (c.photos ?? []).map(publicPhotoUrl),
               }))}
             />

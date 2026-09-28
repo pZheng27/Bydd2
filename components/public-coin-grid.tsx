@@ -7,6 +7,7 @@ export type PublicCoin = {
   id: string;
   title: string;
   grade: string;
+  description?: string;
   photos: string[]; // full URLs, primary first
 };
 
@@ -20,28 +21,43 @@ export function PublicCoinGrid({ coins }: { coins: PublicCoin[] }) {
   return (
     <>
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {coins.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setActive(c)}
-            className="group overflow-hidden rounded-2xl border border-border/60 bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-          >
-            {c.photos[0] ? (
-              <CoinTileImage src={c.photos[0]} alt={c.title} />
-            ) : (
-              <div className="flex aspect-square w-full items-center justify-center bg-muted/50 text-xs text-muted-foreground">
-                No photo
+        {coins.map((c) => {
+          const desc = c.description?.trim();
+          const hasGrade = !!c.grade && c.grade !== "—";
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setActive(c)}
+              className="group overflow-hidden rounded-2xl border border-border/60 bg-card text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            >
+              {c.photos[0] ? (
+                <CoinTileImage src={c.photos[0]} alt={c.title} />
+              ) : (
+                <div className="flex aspect-square w-full items-center justify-center bg-muted/50 text-xs text-muted-foreground">
+                  No photo
+                </div>
+              )}
+              <div className="p-3">
+                <div className="truncate text-sm font-medium tracking-tight">
+                  {c.title || "Untitled coin"}
+                </div>
+                {desc ? (
+                  <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                    {desc}
+                  </div>
+                ) : null}
+                {hasGrade ? (
+                  <div className="mt-0.5 text-xs text-muted-foreground/80">
+                    {c.grade}
+                  </div>
+                ) : !desc ? (
+                  <div className="mt-0.5 text-xs text-muted-foreground">—</div>
+                ) : null}
               </div>
-            )}
-            <div className="p-3">
-              <div className="truncate text-sm font-medium tracking-tight">
-                {c.title || "Untitled coin"}
-              </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{c.grade}</div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
       {active && <CoinModal coin={active} onClose={() => setActive(null)} />}
     </>
@@ -123,7 +139,16 @@ function CoinModal({
           <div className="text-base font-semibold tracking-tight">
             {coin.title || "Untitled coin"}
           </div>
-          <div className="mt-0.5 text-sm text-muted-foreground">{coin.grade}</div>
+          {coin.grade && coin.grade !== "—" ? (
+            <div className="mt-0.5 text-sm text-muted-foreground">
+              {coin.grade}
+            </div>
+          ) : null}
+          {coin.description?.trim() ? (
+            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+              {coin.description}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
