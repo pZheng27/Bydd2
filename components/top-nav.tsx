@@ -16,10 +16,17 @@ const COLLECTOR_PREFIXES = [
 
 /**
  * Top-level area nav. "Collections" (browse other collectors' public sets) is
- * always shown; "Collector" and "Dealer" appear once signed in. Matching is
+ * always shown; "Collector" appears once signed in. "Dealer" is a marketplace
+ * area, so it only shows when the marketplace is enabled. Matching is
  * segment-aware so "/collections" never lights up "/collection".
  */
-export function TopNav({ signedIn }: { signedIn: boolean }) {
+export function TopNav({
+  signedIn,
+  marketplaceEnabled = true,
+}: {
+  signedIn: boolean;
+  marketplaceEnabled?: boolean;
+}) {
   const pathname = usePathname();
   const inSeg = (p: string) => pathname === p || pathname.startsWith(p + "/");
 
@@ -40,7 +47,7 @@ export function TopNav({ signedIn }: { signedIn: boolean }) {
       href: "/dealer",
       label: "Dealer",
       active: pathname.startsWith("/dealer"),
-      show: signedIn,
+      show: signedIn && marketplaceEnabled,
     },
   ].filter((it) => it.show);
 

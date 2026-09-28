@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Paths reachable without being signed in: the public marketplace (the home
@@ -8,6 +9,45 @@ const PUBLIC_PATHS = ["/", "/market", "/login", "/auth", "/u", "/collections"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+// Marketplace areas — hidden and blocked in the Collections-only launch mode.
+// The home page ("/") counts too; Collections/Collector/auth/admin do not.
+const MARKETPLACE_PREFIXES = [
+  "/market",
+  "/messages",
+  "/notifications",
+  "/checkout",
+  "/offers",
+  "/orders",
+  "/saved",
+  "/wants",
+  "/dealer",
+  "/demand",
+];
+
+function isMarketplacePath(pathname: string) {
+  if (pathname === "/") return true;
+  return MARKETPLACE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
+// Read the global launch mode. Tolerant: if the table isn't there yet, behave
+// as the full marketplace so nothing is blocked before the migration is run.
+async function marketplaceEnabled(
+  supabase: SupabaseClient,
+): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("marketplace_enabled")
+      .eq("id", true)
+      .maybeSingle();
+    return data?.marketplace_enabled ?? true;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -46,6 +86,18 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // Collections-only launch mode: send marketplace routes (for anyone) to the
+  // Collections browse. Admins switch back with the header toggle. Only query
+  // the setting for marketplace paths, so other routes pay nothing.
+  if (isMarketplacePath(pathname) && !(await marketplaceEnabled(supabase))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/collections";
+    url.search = "";
+    const redirect = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
+  }
 
   if (!user && !isPublic(pathname)) {
     const url = request.nextUrl.clone();
