@@ -121,42 +121,38 @@ export default async function PublicProfilePage({
 
   return (
     <div className="mx-auto max-w-5xl">
-      <header className="border-b pb-6">
-        <div className="text-xs uppercase tracking-widest text-muted-foreground">
-          Collection
-        </div>
-        <h1 className="mt-1.5 text-3xl font-semibold tracking-tight">
-          {profile.display_name || "A collector"}
-        </h1>
-      </header>
-
       {sections.length === 0 ? (
-        <p className="mt-10 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           No public sets to show yet.
         </p>
       ) : (
-        sections.map((sec) => (
-          <section key={sec.id} id={`set-${sec.id}`} className="mt-10 scroll-mt-20">
-            <h2 className="text-xl font-semibold tracking-tight">{sec.name}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {sec.coins.length} {sec.coins.length === 1 ? "coin" : "coins"}
-            </p>
-            {sec.description && (
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                {sec.description}
+        <div className="space-y-12">
+          {sections.map((sec) => (
+            <section key={sec.id} id={`set-${sec.id}`} className="scroll-mt-20">
+              <h2 className="text-3xl font-semibold tracking-tight">{sec.name}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {sec.coins.length} {sec.coins.length === 1 ? "coin" : "coins"}
               </p>
-            )}
-            <PublicCoinGrid
-              coins={sec.coins.map((c) => ({
-                id: c.id,
-                title: c.title ?? "",
-                grade: gradeLabel(c),
-                description: c.notes ?? "",
-                photos: (c.photos ?? []).map(publicPhotoUrl),
-              }))}
-            />
-          </section>
-        ))
+              <p className="mt-0.5 text-sm font-medium text-foreground/80">
+                {profile.display_name || "A collector"}
+              </p>
+              {sec.description && (
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                  {sec.description}
+                </p>
+              )}
+              <PublicCoinGrid
+                coins={sec.coins.map((c) => ({
+                  id: c.id,
+                  title: c.title ?? "",
+                  grade: gradeLabel(c),
+                  description: c.notes ?? "",
+                  photos: (c.photos ?? []).map(publicPhotoUrl),
+                }))}
+              />
+            </section>
+          ))}
+        </div>
       )}
 
       <footer className="mt-16 border-t pt-6 text-xs text-muted-foreground">
