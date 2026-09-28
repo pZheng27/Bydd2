@@ -144,6 +144,14 @@ export function PhotoUploader({
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  // Whether the user has started a composite (clicked "Create composite").
+  const [composing, setComposing] = useState(false);
+  // Cut-outs made *only* for the composite, keyed by slot id. These never touch
+  // the photo slots, so building a composite never changes the obverse/reverse
+  // thumbnails — those only change when the user clicks "Remove background".
+  const [compositeCutouts, setCompositeCutouts] = useState<
+    Record<string, string>
+  >({});
   const [obvId, setObvId] = useState<string | null>(null);
   const [revId, setRevId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<string | null>(null);
@@ -189,6 +197,8 @@ export function PhotoUploader({
   function resetDerived() {
     setComposite(null);
     setPicking(false);
+    setComposing(false);
+    setCompositeCutouts({});
     setObvId(null);
     setRevId(null);
   }
@@ -408,55 +418,43 @@ export function PhotoUploader({
     });
   }
 
-  // Cut out the composite coins (the live canvas needs transparent cut-outs).
-  // Runs in parallel and writes state once, so nothing races.
-  async function ensureComposite() {
-    const need = compositeSlots().filter((s) => !s.cutout);
+  /**
+   * Make the transparent cut-outs the composite draws, WITHOUT touching the
+   * photo slots — so the obverse/reverse thumbnails are never modified. A coin
+   * the user already cut out (its own "Remove background") is reused as-is; any
+   * that can't be cut out simply fall back to the original in the composite.
+   * Sequential, to be gentle on the single-worker formatter.
+   */
+  async function makeCompositeCutouts() {
+    const need = compositeSlots().filter(
+      (s) => !s.cutout && !compositeCutouts[s.id],
+    );
     if (!need.length) return;
     setBusy("compose");
-    setError(null);
-    setNote(null);
     try {
-      const results = await Promise.all(
-        need.map(async (s) => {
-          const cut = await beautifyPhoto(s.original);
-          const colored = cut ? await flattenPhoto(cut, DEFAULT_BG) : null;
-          return { id: s.id, cut, colored };
-        }),
-      );
-      if (!results.some((r) => r.cut))
-        setError(
-          "Those photos' backgrounds couldn't be removed — a slabbed coin is kept in its holder.",
-        );
-      setSlots((prev) =>
-        prev.map((s) => {
-          const r = results.find((x) => x.id === s.id);
-          return r?.cut
-            ? {
-                ...s,
-                baseCutout: r.cut,
-                cutout: r.cut,
-                angle: 0,
-                bg: DEFAULT_BG,
-                colored: r.colored ?? r.cut,
-              }
-            : s;
-        }),
-      );
+      for (const s of need) {
+        const cut = await beautifyPhoto(s.original);
+        if (cut) setCompositeCutouts((prev) => ({ ...prev, [s.id]: cut }));
+      }
     } finally {
       setBusy(null);
     }
   }
 
-  /** Enter composite mode: pick the two sides (>2 photos), then cut them out. */
-  async function onMainCompose() {
+  /**
+   * Enter composite mode. For >2 photos, first pick which two sides. Building
+   * the composite cuts the coins out for the composite only; it never changes
+   * the obverse/reverse photos themselves.
+   */
+  function onMainCompose() {
     if (slots.length > 2 && (!obvId || !revId)) {
       if (!obvId) setObvId(slots[0].id);
       if (!revId) setRevId(slots[1].id);
       setPicking(true);
       return;
     }
-    await ensureComposite();
+    setComposing(true);
+    void makeCompositeCutouts();
   }
 
   /** Bake the live canvas at full resolution and store it as the composite. */
@@ -527,14 +525,12 @@ export function PhotoUploader({
   // Empty state: labelled Obverse/Reverse boxes for the first two photos.
   const placeholders = slots.length < 2 ? SLOT_LABELS.slice(slots.length) : [];
 
-  // The coins that go into the composite, and whether they're cut out (the live
-  // canvas needs transparent cut-outs to draw).
+  // The two coins that go into the composite. The live canvas draws each one as
+  // it currently is: its cut-out if the user removed the background, otherwise
+  // the original photo — the composite never cuts anything out by itself.
   const compositeCoins = compositeSlots();
   const compositeReady =
-    slots.length > 1 &&
-    !picking &&
-    compositeCoins.length >= 2 &&
-    compositeCoins.every((s) => !!s.cutout);
+    composing && !picking && slots.length > 1 && compositeCoins.length >= 2;
 
   // Plain-English summary of the reflection's perspective (set by the drag handles).
   const perspParts: string[] = [];
@@ -834,9 +830,10 @@ export function PhotoUploader({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={async () => {
+                      onClick={() => {
                         setPicking(false);
-                        await ensureComposite();
+                        setComposing(true);
+                        void makeCompositeCutouts();
                       }}
                       disabled={disabled || !obvId || !revId || obvId === revId}
                       className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
@@ -874,7 +871,9 @@ export function PhotoUploader({
               <div className="w-full max-w-xs">
                 <CompositeCanvas
                   ref={canvasRef}
-                  coinUrls={compositeCoins.map((s) => urlOf(s.cutout as string))}
+                  coinUrls={compositeCoins.map((s) =>
+                    urlOf(s.cutout ?? compositeCutouts[s.id] ?? s.original),
+                  )}
                   background={bg}
                   reflection={reflection}
                   floorGlow={floorGlow}
