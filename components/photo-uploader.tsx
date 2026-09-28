@@ -536,6 +536,20 @@ export function PhotoUploader({
     compositeCoins.length >= 2 &&
     compositeCoins.every((s) => !!s.cutout);
 
+  // Plain-English summary of the reflection's perspective (set by the drag handles).
+  const perspParts: string[] = [];
+  if (Math.abs(reflSpread - 1) >= 0.005 || Math.abs(reflDepth - 1) >= 0.005)
+    perspParts.push(
+      `width ×${reflSpread.toFixed(2)}, height ×${reflDepth.toFixed(2)}`,
+    );
+  if (Math.abs(reflSkew) >= 0.005)
+    perspParts.push(
+      `light ${reflSkew > 0 ? "→ right" : "← left"} ${Math.round(
+        Math.abs(reflSkew) * 100,
+      )}%`,
+    );
+  const perspLabel = perspParts.length ? perspParts.join(" · ") : "straight down";
+
   /** Per-photo background options: None + Original (corner colour) + swatches + hex. */
   function bgOptions(s: Slot) {
     const isColor = (c: string) => s.bg.toLowerCase() === c.toLowerCase();
@@ -875,6 +889,11 @@ export function PhotoUploader({
                   cropTop={cropTop}
                   cropBottom={cropBottom}
                   bgColor={bgColor}
+                  onPerspective={({ spread, depth, skew }) => {
+                    setReflSpread(spread);
+                    setReflDepth(depth);
+                    setReflSkew(skew);
+                  }}
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -982,59 +1001,29 @@ export function PhotoUploader({
                       className="mt-1 w-full accent-foreground"
                     />
                   </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Perspective width</span>
-                      <span className="tabular-nums">×{reflSpread.toFixed(2)}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0.5}
-                      max={2.5}
-                      step={0.05}
-                      value={reflSpread}
-                      disabled={disabled}
-                      onChange={(e) => setReflSpread(+e.target.value)}
-                      className="mt-1 w-full accent-foreground"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Perspective depth</span>
-                      <span className="tabular-nums">×{reflDepth.toFixed(2)}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0.3}
-                      max={1.6}
-                      step={0.05}
-                      value={reflDepth}
-                      disabled={disabled}
-                      onChange={(e) => setReflDepth(+e.target.value)}
-                      className="mt-1 w-full accent-foreground"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Light direction</span>
-                      <span className="tabular-nums">
-                        {Math.abs(reflSkew) < 0.005
-                          ? "centred"
-                          : `${reflSkew > 0 ? "right" : "left"} ${Math.round(
-                              Math.abs(reflSkew) * 100,
-                            )}%`}
+                  <div className="flex items-start gap-2">
+                    <span className="flex-1 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        Perspective:
+                      </span>{" "}
+                      {perspLabel}
+                      <span className="mt-0.5 block text-[11px]">
+                        Drag the ● dots on the photo to shape the reflection, the
+                        ◆ for light direction.
                       </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={-1.5}
-                      max={1.5}
-                      step={0.05}
-                      value={reflSkew}
+                    </span>
+                    <button
+                      type="button"
                       disabled={disabled}
-                      onChange={(e) => setReflSkew(+e.target.value)}
-                      className="mt-1 w-full accent-foreground"
-                    />
+                      onClick={() => {
+                        setReflSpread(1);
+                        setReflDepth(1);
+                        setReflSkew(0);
+                      }}
+                      className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                    >
+                      Reset
+                    </button>
                   </div>
                 </div>
               )}

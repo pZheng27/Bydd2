@@ -2,10 +2,13 @@
 
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 // Live composite preview, rendered entirely in the browser so every adjustment
@@ -43,6 +46,22 @@ export type CanvasAdjust = {
   cropBottom: number; // -40-40 (% of width)
   bgColor: string; // "" = the style's default backdrop; else "#rrggbb"
 };
+
+// Where the visible reflection's bottom sits, per canvas size — so the drag
+// handles can be placed on it (mirrors live_preview.py's sceneGeom).
+type Geom = {
+  mid: number; // coin centre x
+  ry: number; // reflection top y (in the square scene, before edge crop)
+  tw: number;
+  th: number;
+  L: number; // reflection length fraction
+  vL: number; // visible bottom row fraction
+  drop: number; // how far below ry the reflection reaches
+  shift: number; // horizontal lean of the bottom centre (skew)
+  halfW: number; // half-width of the reflection at its bottom
+  yEnd: number; // ry + drop
+};
+const sceneGeom = new Map<number, Geom>();
 
 function mk(w: number, h: number) {
   const c = document.createElement("canvas");
@@ -293,6 +312,23 @@ function renderScene(
     ctx.filter = `blur(${2 * S}px)`;
     ctx.drawImage(wr.img, cx - Math.floor(wr.xoff), ry);
     ctx.restore();
+    // Record the reflection's bottom edge so the drag handles can sit on it.
+    const vLg = rowOf(L, p.reflSpread);
+    const dropg = vLg * th * p.reflDepth;
+    sceneGeom.set(W, {
+      mid: cx + tw / 2,
+      ry,
+      tw,
+      th,
+      L,
+      vL: vLg,
+      drop: dropg,
+      shift: p.reflSkew * dropg,
+      halfW: (tw / 2) * (1 + (p.reflSpread - 1) * vLg),
+      yEnd: ry + dropg,
+    });
+  } else {
+    sceneGeom.delete(W);
   }
 
   ctx.drawImage(coin, cx, cy, tw, th);
@@ -327,17 +363,146 @@ function renderFull(
   ctx.imageSmoothingEnabled = true;
 }
 
+// Drag handles overlaid on the reflection (mirrors live_preview.py's .npf-handle).
+// Stable references so React writes them once and never fights the imperative
+// left/top/display that placeHandles sets each render.
+const ROUND_HANDLE: CSSProperties = {
+  position: "absolute",
+  width: 18,
+  height: 18,
+  margin: "-9px 0 0 -9px",
+  zIndex: 5,
+  borderRadius: "50%",
+  background: "#fff",
+  border: "2px solid #c88a2e",
+  cursor: "grab",
+  boxShadow: "0 1px 5px rgba(0,0,0,.55)",
+  touchAction: "none",
+  display: "none",
+};
+const DIR_HANDLE: CSSProperties = {
+  position: "absolute",
+  width: 16,
+  height: 16,
+  margin: "-8px 0 0 -8px",
+  zIndex: 5,
+  borderRadius: 3,
+  background: "#fff",
+  border: "2px solid #3b82f6",
+  transform: "rotate(45deg)",
+  cursor: "ew-resize",
+  boxShadow: "0 1px 5px rgba(0,0,0,.55)",
+  touchAction: "none",
+  display: "none",
+};
+
+export type PerspectiveChange = {
+  spread: number;
+  depth: number;
+  skew: number;
+};
+
 export const CompositeCanvas = forwardRef<
   CompositeCanvasHandle,
-  { coinUrls: string[]; background: string } & CanvasAdjust
->(function CompositeCanvas({ coinUrls, background, ...p }, ref) {
+  {
+    coinUrls: string[];
+    background: string;
+    /** Drag callback for the perspective / light-direction handles. */
+    onPerspective?: (p: PerspectiveChange) => void;
+  } & CanvasAdjust
+>(function CompositeCanvas({ coinUrls, background, onPerspective, ...p }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const coinsRef = useRef<HTMLImageElement[]>([]);
   const bgRef = useRef<HTMLImageElement | null>(null);
+  const hlRef = useRef<HTMLDivElement>(null); // reflection bottom-left
+  const hrRef = useRef<HTMLDivElement>(null); // reflection bottom-right
+  const hdRef = useRef<HTMLDivElement>(null); // light-direction (diamond)
+  const draggingRef = useRef<null | "lr" | "d">(null);
   const [loaded, setLoaded] = useState(0);
   const studio = background === "shadow";
   const key = coinUrls.join("|") + "::" + background;
   const adjust: CanvasAdjust = p;
+  // Latest values for the drag math / handle placement, read without re-binding.
+  const pRef = useRef(p);
+  pRef.current = p;
+  const onPerspRef = useRef(onPerspective);
+  onPerspRef.current = onPerspective;
+
+  // Put the three handles on the reflection's bottom edge (live_preview.placeHandles).
+  const placeHandles = useCallback(() => {
+    const cv = canvasRef.current,
+      hl = hlRef.current,
+      hr = hrRef.current,
+      hd = hdRef.current;
+    if (!cv || !hl || !hr || !hd) return;
+    const g = sceneGeom.get(cv.width);
+    if (!onPerspRef.current || !pRef.current.reflection || !g) {
+      hl.style.display = hr.style.display = hd.style.display = "none";
+      return;
+    }
+    const k = cv.clientWidth / cv.width;
+    const top = Math.round((cv.width * pRef.current.cropTop) / 100);
+    const y = (g.yEnd + top) * k;
+    const c = g.mid + g.shift;
+    const cw = cv.clientWidth;
+    const clampX = (v: number) => Math.min(cw - 6, Math.max(6, v));
+    const ox = cv.offsetLeft,
+      oy = cv.offsetTop;
+    hl.style.left = ox + clampX((c - g.halfW) * k) + "px";
+    hr.style.left = ox + clampX((c + g.halfW) * k) + "px";
+    hd.style.left = ox + clampX(c * k) + "px";
+    hl.style.top = hr.style.top = hd.style.top = oy + y + "px";
+    const disp = y > 0 && y < cv.clientHeight ? "block" : "none";
+    hl.style.display = hr.style.display = hd.style.display = disp;
+  }, []);
+
+  const startDrag = (kind: "lr" | "d") => (e: ReactPointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    draggingRef.current = kind;
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+  };
+  const moveDrag = (kind: "lr" | "d") => (e: ReactPointerEvent) => {
+    if (draggingRef.current !== kind) return;
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const g = sceneGeom.get(cv.width);
+    const cb = onPerspRef.current;
+    if (!g || !cb) return;
+    const rect = cv.getBoundingClientRect();
+    const k = cv.clientWidth / cv.width;
+    const cur = pRef.current;
+    if (kind === "lr") {
+      const x = (e.clientX - rect.left) / k;
+      const yy =
+        (e.clientY - rect.top) / k - Math.round((cv.width * cur.cropTop) / 100);
+      // Distance from the centre line → the row's width → the spread (solved
+      // iteratively because the visible row fraction itself depends on spread).
+      const R = Math.abs(x - (g.mid + g.shift)) / (g.tw / 2);
+      let b = cur.reflSpread;
+      for (let i = 0; i < 6; i++) {
+        const vL = Math.max(0.05, rowOf(g.L, b));
+        b = Math.min(2.5, Math.max(0.5, 1 + (R - 1) / vL));
+      }
+      const vL = Math.max(0.05, rowOf(g.L, b));
+      const d = Math.min(1.6, Math.max(0.3, (yy - g.ry) / (vL * g.th)));
+      cb({ spread: +b.toFixed(3), depth: +d.toFixed(3), skew: cur.reflSkew });
+    } else {
+      if (g.drop <= 0) return;
+      const x = (e.clientX - rect.left) / k;
+      const skew = Math.min(1.5, Math.max(-1.5, (x - g.mid) / g.drop));
+      cb({ spread: cur.reflSpread, depth: cur.reflDepth, skew: +skew.toFixed(3) });
+    }
+  };
+  const endDrag = (e: ReactPointerEvent) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = null;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
 
   useImperativeHandle(
     ref,
@@ -388,15 +553,54 @@ export const CompositeCanvas = forwardRef<
   useEffect(() => {
     const cv = canvasRef.current;
     if (cv) renderFull(cv, coinsRef.current, bgRef.current, studio, adjust);
+    placeHandles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, studio, ...Object.values(adjust)]);
 
+  // Reposition the handles when the canvas is resized (responsive width).
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => placeHandles());
+    ro.observe(cv);
+    return () => ro.disconnect();
+  }, [placeHandles]);
+
   return (
-    <canvas
-      ref={canvasRef}
-      width={PREVIEW}
-      height={PREVIEW}
-      className="w-full rounded-lg border bg-muted"
-    />
+    <div className="relative w-full">
+      <canvas
+        ref={canvasRef}
+        width={PREVIEW}
+        height={PREVIEW}
+        className="w-full rounded-lg border bg-muted"
+      />
+      <div
+        ref={hlRef}
+        style={ROUND_HANDLE}
+        title="Drag to change the reflection's perspective"
+        onPointerDown={startDrag("lr")}
+        onPointerMove={moveDrag("lr")}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      />
+      <div
+        ref={hrRef}
+        style={ROUND_HANDLE}
+        title="Drag to change the reflection's perspective"
+        onPointerDown={startDrag("lr")}
+        onPointerMove={moveDrag("lr")}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      />
+      <div
+        ref={hdRef}
+        style={DIR_HANDLE}
+        title="Drag left / right to change the light direction"
+        onPointerDown={startDrag("d")}
+        onPointerMove={moveDrag("d")}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      />
+    </div>
   );
 });
