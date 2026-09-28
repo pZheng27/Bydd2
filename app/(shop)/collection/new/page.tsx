@@ -5,6 +5,7 @@ import { GRADING_SERVICES } from "@/lib/coins";
 import { embeddedOne } from "@/lib/catalog";
 import { AddToSetField, type SetOption } from "@/components/add-to-set-field";
 import { PhotoUploader } from "@/components/photo-uploader";
+import { SavePhotosButton } from "@/components/save-photos-button";
 import { Button } from "@/components/ui/button";
 
 // The uploader enhances a photo on demand via a server action; give the
@@ -202,14 +203,17 @@ export default async function AddCollectionItemPage() {
           <textarea id="notes" name="notes" rows={3} className={inputCls} />
         </Field>
 
-        <div className="flex items-center justify-end gap-3 border-t pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <Link
             href="/collection"
             className="text-sm text-muted-foreground hover:underline"
           >
             Cancel
           </Link>
-          <Button type="submit">Add to collection</Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <SavePhotosButton />
+            <Button type="submit">Add to collection</Button>
+          </div>
         </div>
       </form>
       )}
