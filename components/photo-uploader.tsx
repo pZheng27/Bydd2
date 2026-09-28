@@ -124,7 +124,6 @@ export function PhotoUploader({
   // the first uploaded photo stays primary unless the user opts in.
   const [compositePrimary, setCompositePrimary] = useState(false);
   const [bg, setBg] = useState<"shadow" | "plain">("shadow");
-  const [color, setColor] = useState("#ffffff");
   // Studio adjustments for the composite (map to the formatter's knobs).
   // Reflection is on by default because the default background is the studio
   // "shadow" look.
@@ -133,6 +132,14 @@ export function PhotoUploader({
   const [floorShadow, setFloorShadow] = useState(false);
   const [gap, setGap] = useState(6); // % of coin height, obverse↔reverse
   const [padding, setPadding] = useState(14); // % of frame, top & bottom
+  const [reflLen, setReflLen] = useState(42); // reflection length, % of coin height
+  const [reflStr, setReflStr] = useState(26); // reflection strength (opacity), %
+  const [reflSpread, setReflSpread] = useState(1); // perspective: bottom width ×
+  const [reflDepth, setReflDepth] = useState(1); // perspective: height ×
+  const [reflSkew, setReflSkew] = useState(0); // light direction / lean
+  const [cropTop, setCropTop] = useState(0); // top edge: trim (<0) / add (>0) %
+  const [cropBottom, setCropBottom] = useState(0); // bottom edge %
+  const [bgColor, setBgColor] = useState(""); // "" = the style's default backdrop
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -484,10 +491,6 @@ export function PhotoUploader({
     if (next === "shadow") setReflection(true);
   }
 
-  function chooseColor(next: string) {
-    setColor(next);
-  }
-
   // Adjustments update state only — the canvas re-renders live, no server call.
   function commitAdjust(over: Partial<Adjust>) {
     if (over.reflection !== undefined) setReflection(over.reflection);
@@ -495,6 +498,23 @@ export function PhotoUploader({
     if (over.floorShadow !== undefined) setFloorShadow(over.floorShadow);
     if (over.gap !== undefined) setGap(over.gap);
     if (over.padding !== undefined) setPadding(over.padding);
+  }
+
+  /** Put every composite adjustment back to its default. */
+  function resetAdjust() {
+    setReflection(bg === "shadow");
+    setFloorGlow(false);
+    setFloorShadow(false);
+    setGap(6);
+    setPadding(14);
+    setReflLen(42);
+    setReflStr(26);
+    setReflSpread(1);
+    setReflDepth(1);
+    setReflSkew(0);
+    setCropTop(0);
+    setCropBottom(0);
+    setBgColor("");
   }
 
   const photoPaths = slots.map((s) => slotDisplay(s));
@@ -778,32 +798,6 @@ export function PhotoUploader({
                   </button>
                 </div>
 
-                {bg === "plain" && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {SWATCHES.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => chooseColor(c)}
-                        disabled={disabled}
-                        aria-label={`Background ${c}`}
-                        className={
-                          "h-6 w-6 rounded-full border " +
-                          (color.toLowerCase() === c.toLowerCase()
-                            ? "ring-2 ring-ring ring-offset-1"
-                            : "")
-                        }
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                    <HexColorInput
-                      key={color}
-                      value={color}
-                      onApply={chooseColor}
-                      disabled={disabled}
-                    />
-                  </div>
-                )}
               </div>
 
               {picking ? (
@@ -867,12 +861,20 @@ export function PhotoUploader({
                 <CompositeCanvas
                   ref={canvasRef}
                   coinUrls={compositeCoins.map((s) => urlOf(s.cutout as string))}
-                  background={bg === "shadow" ? "shadow" : color}
+                  background={bg}
                   reflection={reflection}
                   floorGlow={floorGlow}
                   floorShadow={floorShadow}
                   gap={gap}
                   padding={padding}
+                  reflLen={reflLen}
+                  reflStr={reflStr}
+                  reflSpread={reflSpread}
+                  reflDepth={reflDepth}
+                  reflSkew={reflSkew}
+                  cropTop={cropTop}
+                  cropBottom={cropBottom}
+                  bgColor={bgColor}
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -947,6 +949,96 @@ export function PhotoUploader({
                 Floor shadow
               </label>
 
+              {/* Reflection shaping — only meaningful when the reflection is on */}
+              {reflection && (
+                <div className="space-y-3 rounded-md bg-muted/40 p-2">
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Reflection length</span>
+                      <span className="tabular-nums">{reflLen}% of the coin</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={5}
+                      max={100}
+                      value={reflLen}
+                      disabled={disabled}
+                      onChange={(e) => setReflLen(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Reflection strength</span>
+                      <span className="tabular-nums">{reflStr}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={5}
+                      max={80}
+                      value={reflStr}
+                      disabled={disabled}
+                      onChange={(e) => setReflStr(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Perspective width</span>
+                      <span className="tabular-nums">×{reflSpread.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.5}
+                      max={2.5}
+                      step={0.05}
+                      value={reflSpread}
+                      disabled={disabled}
+                      onChange={(e) => setReflSpread(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Perspective depth</span>
+                      <span className="tabular-nums">×{reflDepth.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0.3}
+                      max={1.6}
+                      step={0.05}
+                      value={reflDepth}
+                      disabled={disabled}
+                      onChange={(e) => setReflDepth(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Light direction</span>
+                      <span className="tabular-nums">
+                        {Math.abs(reflSkew) < 0.005
+                          ? "centred"
+                          : `${reflSkew > 0 ? "right" : "left"} ${Math.round(
+                              Math.abs(reflSkew) * 100,
+                            )}%`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-1.5}
+                      max={1.5}
+                      step={0.05}
+                      value={reflSkew}
+                      disabled={disabled}
+                      onChange={(e) => setReflSkew(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Gap (obverse ↔ reverse)</span>
@@ -978,6 +1070,88 @@ export function PhotoUploader({
                   className="mt-1 w-full accent-foreground"
                 />
               </div>
+
+              {/* Crop or extend the frame edges — nothing is resized */}
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Crop or extend the edges
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Nothing is resized — trim (−) or add space (+).
+                </p>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Top edge</span>
+                  <span className="tabular-nums">
+                    {cropTop === 0 ? "—" : `${cropTop > 0 ? "+" : ""}${cropTop}%`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-40}
+                  max={40}
+                  value={cropTop}
+                  disabled={disabled}
+                  onChange={(e) => setCropTop(+e.target.value)}
+                  className="mt-1 w-full accent-foreground"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Bottom edge</span>
+                  <span className="tabular-nums">
+                    {cropBottom === 0
+                      ? "—"
+                      : `${cropBottom > 0 ? "+" : ""}${cropBottom}%`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-40}
+                  max={40}
+                  value={cropBottom}
+                  disabled={disabled}
+                  onChange={(e) => setCropBottom(+e.target.value)}
+                  className="mt-1 w-full accent-foreground"
+                />
+              </div>
+
+              {/* Background colour — overrides the style's own backdrop */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Background colour
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={bgColor || (bg === "shadow" ? "#222224" : "#ffffff")}
+                    disabled={disabled}
+                    onChange={(e) => setBgColor(e.target.value)}
+                    className="h-8 w-10 cursor-pointer rounded border bg-transparent p-0.5"
+                    title="Pick a background colour"
+                  />
+                  {bgColor && (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setBgColor("")}
+                      className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                    >
+                      Default
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={resetAdjust}
+                className="mt-1 w-full rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              >
+                ↺ Reset adjustments
+              </button>
             </div>
           </div>
         )}
