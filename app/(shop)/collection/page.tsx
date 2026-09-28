@@ -36,7 +36,6 @@ export default async function CollectionPage({
 
   let sets: CustomSet[] = [];
   let collectionId: string | null = null;
-  let profileId: string | null = null;
 
   if (user) {
     const { data: prof } = await supabase
@@ -45,7 +44,6 @@ export default async function CollectionPage({
       .eq("user_id", user.id)
       .maybeSingle();
     if (prof) {
-      profileId = prof.id;
       const { data: col } = await supabase
         .from("collections")
         .select("id")
@@ -75,20 +73,9 @@ export default async function CollectionPage({
             Organize your coins into sets and track which ones you still need.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {profileId && (
-            <Link
-              href={`/u/${profileId}`}
-              target="_blank"
-              className="rounded-full border px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-            >
-              Public profile
-            </Link>
-          )}
-          <Link href="/collection/new">
-            <Button>Add coin</Button>
-          </Link>
-        </div>
+        <Link href="/collection/new">
+          <Button>Add coin</Button>
+        </Link>
       </div>
 
       {sets.length === 0 ? (
