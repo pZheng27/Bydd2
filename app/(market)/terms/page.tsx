@@ -104,9 +104,12 @@ export default function TermsPage() {
       <Section title="Contact">
         <p>
           Questions? Contact us at{" "}
-          <span className="font-medium text-foreground">
-            [your support email]
-          </span>
+          <a
+            href="mailto:zhengpeter26@gmail.com"
+            className="font-medium text-foreground hover:underline"
+          >
+            zhengpeter26@gmail.com
+          </a>
           .
         </p>
       </Section>
