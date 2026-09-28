@@ -933,214 +933,234 @@ export function PhotoUploader({
             </div>
 
             {/* Studio adjustments — to the right of the composite, live */}
-            <div className="space-y-3 sm:w-56">
+            <div className="space-y-3">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Adjust — changes show instantly
               </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={reflection}
-                  disabled={disabled}
-                  onChange={(e) => commitAdjust({ reflection: e.target.checked })}
-                  className="h-4 w-4 accent-foreground"
-                />
-                Mirror reflection
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={floorGlow}
-                  disabled={disabled}
-                  onChange={(e) => commitAdjust({ floorGlow: e.target.checked })}
-                  className="h-4 w-4 accent-foreground"
-                />
-                Floor glow
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={floorShadow}
-                  disabled={disabled}
-                  onChange={(e) => commitAdjust({ floorShadow: e.target.checked })}
-                  className="h-4 w-4 accent-foreground"
-                />
-                Floor shadow
-              </label>
-
-              {/* Reflection shaping — only meaningful when the reflection is on */}
-              {reflection && (
-                <div className="space-y-3 rounded-md bg-muted/40 p-2">
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Reflection length</span>
-                      <span className="tabular-nums">{reflLen}% of the coin</span>
-                    </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                {/* Left column: reflection & staging */}
+                <div className="space-y-3 sm:w-48">
+                  <label className="flex items-center gap-2 text-sm">
                     <input
-                      type="range"
-                      min={5}
-                      max={100}
-                      value={reflLen}
+                      type="checkbox"
+                      checked={reflection}
                       disabled={disabled}
-                      onChange={(e) => setReflLen(+e.target.value)}
-                      className="mt-1 w-full accent-foreground"
+                      onChange={(e) =>
+                        commitAdjust({ reflection: e.target.checked })
+                      }
+                      className="h-4 w-4 accent-foreground"
                     />
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Reflection strength</span>
-                      <span className="tabular-nums">{reflStr}%</span>
-                    </div>
+                    Mirror reflection
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
                     <input
-                      type="range"
-                      min={5}
-                      max={80}
-                      value={reflStr}
+                      type="checkbox"
+                      checked={floorGlow}
                       disabled={disabled}
-                      onChange={(e) => setReflStr(+e.target.value)}
-                      className="mt-1 w-full accent-foreground"
+                      onChange={(e) =>
+                        commitAdjust({ floorGlow: e.target.checked })
+                      }
+                      className="h-4 w-4 accent-foreground"
                     />
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="flex-1 text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        Perspective:
-                      </span>{" "}
-                      {perspLabel}
-                      <span className="mt-0.5 block text-[11px]">
-                        Drag the ● dots on the photo to shape the reflection, the
-                        ◆ for light direction.
-                      </span>
-                    </span>
-                    <button
-                      type="button"
+                    Floor glow
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={floorShadow}
                       disabled={disabled}
-                      onClick={() => {
-                        setReflSpread(1);
-                        setReflDepth(1);
-                        setReflSkew(0);
-                      }}
-                      className="rounded border px-2 py-1 text-xs hover:bg-muted"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-              )}
+                      onChange={(e) =>
+                        commitAdjust({ floorShadow: e.target.checked })
+                      }
+                      className="h-4 w-4 accent-foreground"
+                    />
+                    Floor shadow
+                  </label>
 
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Gap (obverse ↔ reverse)</span>
-                  <span className="tabular-nums">{gap}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={60}
-                  value={gap}
-                  disabled={disabled}
-                  onChange={(e) => setGap(+e.target.value)}
-                  className="mt-1 w-full accent-foreground"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Padding (less = bigger)</span>
-                  <span className="tabular-nums">{padding}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={2}
-                  max={40}
-                  value={padding}
-                  disabled={disabled}
-                  onChange={(e) => setPadding(+e.target.value)}
-                  className="mt-1 w-full accent-foreground"
-                />
-              </div>
-
-              {/* Crop or extend the frame edges — nothing is resized */}
-              <div>
-                <div className="text-xs font-medium text-muted-foreground">
-                  Crop or extend the edges
-                </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Nothing is resized — trim (−) or add space (+).
-                </p>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Top edge</span>
-                  <span className="tabular-nums">
-                    {cropTop === 0 ? "—" : `${cropTop > 0 ? "+" : ""}${cropTop}%`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={-40}
-                  max={40}
-                  value={cropTop}
-                  disabled={disabled}
-                  onChange={(e) => setCropTop(+e.target.value)}
-                  className="mt-1 w-full accent-foreground"
-                />
-              </div>
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Bottom edge</span>
-                  <span className="tabular-nums">
-                    {cropBottom === 0
-                      ? "—"
-                      : `${cropBottom > 0 ? "+" : ""}${cropBottom}%`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={-40}
-                  max={40}
-                  value={cropBottom}
-                  disabled={disabled}
-                  onChange={(e) => setCropBottom(+e.target.value)}
-                  className="mt-1 w-full accent-foreground"
-                />
-              </div>
-
-              {/* Background colour — overrides the style's own backdrop */}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">
-                  Background colour
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={bgColor || (bg === "shadow" ? "#222224" : "#ffffff")}
-                    disabled={disabled}
-                    onChange={(e) => setBgColor(e.target.value)}
-                    className="h-8 w-10 cursor-pointer rounded border bg-transparent p-0.5"
-                    title="Pick a background colour"
-                  />
-                  {bgColor && (
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => setBgColor("")}
-                      className="rounded border px-2 py-1 text-xs hover:bg-muted"
-                    >
-                      Default
-                    </button>
+                  {/* Reflection shaping — only meaningful when the reflection is on */}
+                  {reflection && (
+                    <div className="space-y-3 rounded-md bg-muted/40 p-2">
+                      <div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Reflection length</span>
+                          <span className="tabular-nums">
+                            {reflLen}% of the coin
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={5}
+                          max={100}
+                          value={reflLen}
+                          disabled={disabled}
+                          onChange={(e) => setReflLen(+e.target.value)}
+                          className="mt-1 w-full accent-foreground"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Reflection strength</span>
+                          <span className="tabular-nums">{reflStr}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={5}
+                          max={80}
+                          value={reflStr}
+                          disabled={disabled}
+                          onChange={(e) => setReflStr(+e.target.value)}
+                          className="mt-1 w-full accent-foreground"
+                        />
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="flex-1 text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            Perspective:
+                          </span>{" "}
+                          {perspLabel}
+                          <span className="mt-0.5 block text-[11px]">
+                            Drag the ● dots on the photo to shape the
+                            reflection, the ◆ for light direction.
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => {
+                            setReflSpread(1);
+                            setReflDepth(1);
+                            setReflSkew(0);
+                          }}
+                          className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
 
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={resetAdjust}
-                className="mt-1 w-full rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-              >
-                ↺ Reset adjustments
-              </button>
+                {/* Right column: framing & finish */}
+                <div className="space-y-3 sm:w-48">
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Gap (obverse ↔ reverse)</span>
+                      <span className="tabular-nums">{gap}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={60}
+                      value={gap}
+                      disabled={disabled}
+                      onChange={(e) => setGap(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Padding (less = bigger)</span>
+                      <span className="tabular-nums">{padding}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={2}
+                      max={40}
+                      value={padding}
+                      disabled={disabled}
+                      onChange={(e) => setPadding(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+
+                  {/* Crop or extend the frame edges — nothing is resized */}
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground">
+                      Crop or extend the edges
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Nothing is resized — trim (−) or add space (+).
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Top edge</span>
+                      <span className="tabular-nums">
+                        {cropTop === 0
+                          ? "—"
+                          : `${cropTop > 0 ? "+" : ""}${cropTop}%`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-40}
+                      max={40}
+                      value={cropTop}
+                      disabled={disabled}
+                      onChange={(e) => setCropTop(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Bottom edge</span>
+                      <span className="tabular-nums">
+                        {cropBottom === 0
+                          ? "—"
+                          : `${cropBottom > 0 ? "+" : ""}${cropBottom}%`}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-40}
+                      max={40}
+                      value={cropBottom}
+                      disabled={disabled}
+                      onChange={(e) => setCropBottom(+e.target.value)}
+                      className="mt-1 w-full accent-foreground"
+                    />
+                  </div>
+
+                  {/* Background colour — overrides the style's own backdrop */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Background colour
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={
+                          bgColor || (bg === "shadow" ? "#222224" : "#ffffff")
+                        }
+                        disabled={disabled}
+                        onChange={(e) => setBgColor(e.target.value)}
+                        className="h-8 w-10 cursor-pointer rounded border bg-transparent p-0.5"
+                        title="Pick a background colour"
+                      />
+                      {bgColor && (
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => setBgColor("")}
+                          className="rounded border px-2 py-1 text-xs hover:bg-muted"
+                        >
+                          Default
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={resetAdjust}
+                    className="mt-1 w-full rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                  >
+                    ↺ Reset adjustments
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
