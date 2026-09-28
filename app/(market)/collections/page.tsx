@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { embeddedOne } from "@/lib/catalog";
 import { publicPhotoUrl } from "@/lib/photos";
 import { CoinTileImage } from "@/components/coin-tile";
+import { Button } from "@/components/ui/button";
 
 // Browse other collectors' public sets — one card per public set, showing the
 // set title, whose it is, an optional description, and a few coin photos from
@@ -174,11 +175,16 @@ export default async function CollectionsBrowsePage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Collections</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Browse other collectors&apos; public sets.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Collections</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Browse other collectors&apos; public sets.
+          </p>
+        </div>
+        <Link href="/collection">
+          <Button>Add your own collection</Button>
+        </Link>
       </div>
 
       {cards.length === 0 ? (
