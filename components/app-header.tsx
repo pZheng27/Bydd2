@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
-import { signOut, setMarketplaceMode } from "@/app/actions";
+import { UserMenu } from "@/components/user-menu";
+import { setMarketplaceMode } from "@/app/actions";
 import { createClient } from "@/lib/supabase/server";
 import { getMarketplaceEnabled } from "@/lib/app-settings";
 
@@ -47,7 +48,7 @@ export async function AppHeader({ email }: { email: string | null }) {
         <Link href={marketplaceEnabled ? "/" : "/collections"} className="font-semibold">
           Bydd
         </Link>
-        <TopNav signedIn={signedIn} marketplaceEnabled={marketplaceEnabled} />
+        <TopNav />
       </div>
       <div className="flex items-center gap-3 text-sm">
         {isAdmin && (
@@ -90,12 +91,7 @@ export async function AppHeader({ email }: { email: string | null }) {
                 </Link>
               </>
             )}
-            <span className="text-muted-foreground">{email}</span>
-            <form action={signOut}>
-              <button className="rounded-md border px-3 py-1.5 font-medium hover:bg-muted">
-                Sign out
-              </button>
-            </form>
+            <UserMenu email={email ?? ""} marketplaceEnabled={marketplaceEnabled} />
           </>
         ) : (
           <Link
