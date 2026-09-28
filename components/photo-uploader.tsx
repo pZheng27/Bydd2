@@ -421,8 +421,9 @@ export function PhotoUploader({
   /**
    * Make the transparent cut-outs the composite draws, WITHOUT touching the
    * photo slots — so the obverse/reverse thumbnails are never modified. A coin
-   * the user already cut out (its own "Remove background") is reused as-is; any
-   * that can't be cut out simply fall back to the original in the composite.
+   * the user already cut out (its own "Remove background") is reused as-is. The
+   * composite only ever shows cut-outs, never the original background, so if a
+   * coin can't be cut out we surface an error and don't open the composite.
    * Sequential, to be gentle on the single-worker formatter.
    */
   async function makeCompositeCutouts() {
@@ -431,10 +432,22 @@ export function PhotoUploader({
     );
     if (!need.length) return;
     setBusy("compose");
+    setError(null);
+    setNote(null);
     try {
+      let anyFail = false;
       for (const s of need) {
         const cut = await beautifyPhoto(s.original);
         if (cut) setCompositeCutouts((prev) => ({ ...prev, [s.id]: cut }));
+        else anyFail = true;
+      }
+      if (anyFail) {
+        // The composite must never show an original background, so don't open
+        // it — tell the user and let them retry (or keep a slab in its holder).
+        setError(
+          "A coin's background couldn't be removed, so the composite can't be built. If it's a slabbed coin, keep it in its holder; otherwise try again.",
+        );
+        setComposing(false);
       }
     } finally {
       setBusy(null);
@@ -525,12 +538,17 @@ export function PhotoUploader({
   // Empty state: labelled Obverse/Reverse boxes for the first two photos.
   const placeholders = slots.length < 2 ? SLOT_LABELS.slice(slots.length) : [];
 
-  // The two coins that go into the composite. The live canvas draws each one as
-  // it currently is: its cut-out if the user removed the background, otherwise
-  // the original photo — the composite never cuts anything out by itself.
+  // The two coins that go into the composite. Each must have a cut-out — the
+  // user's own, or the composite-only one made on "Create composite" — before
+  // the composite opens, so the original background is never shown.
   const compositeCoins = compositeSlots();
+  const coinCutout = (s: Slot): string | null => s.cutout ?? compositeCutouts[s.id] ?? null;
   const compositeReady =
-    composing && !picking && slots.length > 1 && compositeCoins.length >= 2;
+    composing &&
+    !picking &&
+    slots.length > 1 &&
+    compositeCoins.length >= 2 &&
+    compositeCoins.every((s) => !!coinCutout(s));
 
   // Plain-English summary of the reflection's perspective (set by the drag handles).
   const perspParts: string[] = [];
@@ -850,6 +868,11 @@ export function PhotoUploader({
                     </button>
                   </div>
                 </div>
+              ) : composing && !compositeReady ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-foreground" />
+                  Preparing the composite — cutting out the coins…
+                </div>
               ) : !compositeReady ? (
                 <button
                   type="button"
@@ -857,7 +880,7 @@ export function PhotoUploader({
                   disabled={disabled}
                   className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
                 >
-                  {busy === "compose" ? "Preparing…" : "Create composite"}
+                  Create composite
                 </button>
               ) : null}
             </div>
@@ -871,9 +894,7 @@ export function PhotoUploader({
               <div className="w-full max-w-xs">
                 <CompositeCanvas
                   ref={canvasRef}
-                  coinUrls={compositeCoins.map((s) =>
-                    urlOf(s.cutout ?? compositeCutouts[s.id] ?? s.original),
-                  )}
+                  coinUrls={compositeCoins.map((s) => urlOf(coinCutout(s)!))}
                   background={bg}
                   reflection={reflection}
                   floorGlow={floorGlow}
