@@ -965,7 +965,7 @@ export function PhotoUploader({
 
               <div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Top &amp; bottom padding</span>
+                  <span>Padding (less = bigger)</span>
                   <span className="tabular-nums">{padding}%</span>
                 </div>
                 <input

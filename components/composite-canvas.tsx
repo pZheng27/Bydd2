@@ -78,8 +78,11 @@ function render(
   }
 
   const coin = combine(coins, p.gap);
-  const maxH = Math.min(0.98, Math.max(0.15, 1 - (2 * p.padding) / 100));
-  const fit = Math.min((W * 0.9) / coin.width, (H * maxH) / coin.height);
+  // Padding is the margin on ALL sides, so decreasing it actually grows the
+  // coins. (Capping only the height left a wide obverse+reverse pair pinned to
+  // the width limit, so lowering the padding did nothing.)
+  const maxSize = Math.min(0.98, Math.max(0.15, 1 - (2 * p.padding) / 100));
+  const fit = Math.min((W * maxSize) / coin.width, (H * maxSize) / coin.height);
   const tw = Math.max(1, Math.round(coin.width * fit));
   const th = Math.max(1, Math.round(coin.height * fit));
   const floor = p.floorGlow || p.floorShadow;
