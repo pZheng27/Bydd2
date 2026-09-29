@@ -55,6 +55,10 @@ function angleAt(cx: number, cy: number, x: number, y: number): number {
   return (Math.atan2(y - cy, x - cx) * 180) / Math.PI;
 }
 
+/** Wall-clock timestamp in ms, for the optional on-screen stopwatch. */
+const nowMs = (): number =>
+  typeof performance !== "undefined" ? performance.now() : Date.now();
+
 /** A single colour input: a live swatch + one hex text field (no R/G/B trio). */
 function HexColorInput({
   value,
@@ -352,7 +356,9 @@ export function PhotoUploader({
     setError(null);
     setNote(null);
     try {
+      const t0 = nowMs();
       const cut = await beautifyPhoto(slot.original);
+      const t1 = nowMs();
       if (!cut) {
         setNote(
           "That photo's background couldn't be removed — a slabbed coin is kept in its holder. The original will be used.",
@@ -361,6 +367,7 @@ export function PhotoUploader({
       }
       // Place the cut-out on white by default, tight to the coin (no padding).
       const colored = await placeOnColor(cut, DEFAULT_BG);
+      const t2 = nowMs();
       const updated = slots.map((s) =>
         s.id === id
           ? {
@@ -374,6 +381,16 @@ export function PhotoUploader({
           : s,
       );
       setSlots(updated);
+      // Hidden stopwatch: add ?timing to the page URL to see how long each step
+      // took on the live site. Off (and invisible) for everyone else.
+      if (
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).has("timing")
+      ) {
+        setNote(
+          `⏱ total ${((t2 - t0) / 1000).toFixed(1)}s — background removal ${((t1 - t0) / 1000).toFixed(1)}s · place on white ${((t2 - t1) / 1000).toFixed(1)}s`,
+        );
+      }
       // The live composite canvas reads each coin's cut-out, so it updates on
       // its own — no re-generation needed here.
     } catch {
