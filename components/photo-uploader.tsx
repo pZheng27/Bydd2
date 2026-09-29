@@ -536,9 +536,9 @@ export function PhotoUploader({
 
   function chooseBg(next: "shadow" | "plain") {
     setBg(next);
-    // The studio "shadow" look reads best with a reflection, so turn it on by
-    // default whenever it's chosen.
-    if (next === "shadow") setReflection(true);
+    // The studio "shadow" look reads best with a reflection; the plain
+    // composite never uses one.
+    setReflection(next === "shadow");
   }
 
   // Adjustments update state only — the canvas re-renders live, no server call.
@@ -991,7 +991,9 @@ export function PhotoUploader({
               )}
             </div>
 
-            {/* Studio adjustments — to the right of the composite, live */}
+            {/* Studio adjustments — Shadow only; the plain composite
+                auto-renders in a fixed format (sample composite.jpg). */}
+            {bg === "shadow" && (
             <div className="space-y-3">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Adjust — changes show instantly
@@ -1221,6 +1223,7 @@ export function PhotoUploader({
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>

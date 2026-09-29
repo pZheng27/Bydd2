@@ -334,6 +334,34 @@ function renderScene(
   ctx.drawImage(coin, cx, cy, tw, th);
 }
 
+// The plain composite matches sample composite.jpg: the two coins side by side
+// on a solid background, filling the full height (no top/bottom padding), with
+// a small gap and side margins. No reflection, glow, shadow or framing.
+const PLAIN_GAP = 2.3; // gap as % of coin height (measured from the sample)
+const PLAIN_SIDE = 0.04; // side margin as a fraction of the combined width
+
+function renderPlain(
+  target: HTMLCanvasElement,
+  coins: HTMLImageElement[],
+  bgColor: string,
+) {
+  const coin = combine(coins, PLAIN_GAP);
+  const W = target.width;
+  const sideM = Math.round(coin.width * PLAIN_SIDE);
+  const contentW = coin.width + 2 * sideM;
+  const scale = W / contentW;
+  const H = Math.max(1, Math.round(coin.height * scale)); // no top/bottom pad
+  if (target.height !== H) target.height = H;
+  const ctx = target.getContext("2d")!;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.filter = "none";
+  ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = /^#[0-9a-fA-F]{6}$/.test(bgColor) ? bgColor : "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(coin, Math.round(sideM * scale), 0, Math.round(coin.width * scale), H);
+}
+
 /** Full render: the square scene, then top/bottom edges cropped / extended. */
 function renderFull(
   target: HTMLCanvasElement,
@@ -343,6 +371,11 @@ function renderFull(
   p: CanvasAdjust,
 ) {
   if (!coins.length) return;
+  // Plain composite: the tight, no-reflection layout (sample composite.jpg).
+  if (!studio) {
+    renderPlain(target, coins, p.bgColor);
+    return;
+  }
   const W = target.width;
   const sq = mk(W, W);
   renderScene(sq, coins, bgImg, studio, p);
