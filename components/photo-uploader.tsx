@@ -206,12 +206,55 @@ export function PhotoUploader({
     setRevId(null);
   }
 
+  // Shrink big photos in the browser before upload so they transfer fast even
+  // on a slow connection. Caps the long edge at 2560px (still high-res —
+  // composites render at 2048px) and re-encodes as JPEG. Respects EXIF
+  // orientation; falls back to the original on any issue or if it wouldn't get
+  // smaller.
+  async function downscaleForUpload(file: File): Promise<File> {
+    if (!file.type.startsWith("image/")) return file;
+    try {
+      const bmp = await createImageBitmap(file, {
+        imageOrientation: "from-image",
+      });
+      const MAX = 2560;
+      const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+      if (scale === 1 && file.size <= 1_200_000) {
+        bmp.close();
+        return file;
+      }
+      const w = Math.round(bmp.width * scale);
+      const h = Math.round(bmp.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        bmp.close();
+        return file;
+      }
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(bmp, 0, 0, w, h);
+      bmp.close();
+      const blob = await new Promise<Blob | null>((res) =>
+        canvas.toBlob(res, "image/jpeg", 0.9),
+      );
+      if (!blob || blob.size >= file.size) return file;
+      return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {
+        type: "image/jpeg",
+      });
+    } catch {
+      return file;
+    }
+  }
+
   async function upload(file: File): Promise<string | null> {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const prepared = await downscaleForUpload(file);
+    const ext = prepared.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${folder}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("item-photos")
-      .upload(path, file, { contentType: file.type, upsert: false });
+      .upload(path, prepared, { contentType: prepared.type, upsert: false });
     if (upErr) {
       setError(upErr.message);
       return null;
