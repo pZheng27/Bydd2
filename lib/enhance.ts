@@ -41,6 +41,37 @@ async function storePng(
   return error ? null : outPath;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * POST to the formatter with a few retries. The free Hugging Face Space sleeps
+ * when idle and the first request after waking often returns a 5xx or times
+ * out; without a retry that turns a single "Remove background" click into a
+ * failure the user has to click again. Retries on 5xx/429/network errors with a
+ * short backoff (giving the Space time to wake); returns the Response (which
+ * may still be non-ok) or null if it never responded. `makeForm` is called
+ * fresh each attempt because a FormData body can't be reused.
+ */
+async function postFormatter(
+  endpoint: string,
+  makeForm: () => FormData,
+): Promise<Response | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${FORMATTER_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "X-API-Key": FORMATTER_API_KEY as string },
+        body: makeForm(),
+      });
+      if (res.ok || (res.status < 500 && res.status !== 429)) return res;
+    } catch {
+      /* network error / timeout — fall through to retry */
+    }
+    if (attempt < 2) await sleep(2500 * (attempt + 1));
+  }
+  return null;
+}
+
 /**
  * Beautify: remove the background from a stored photo. Returns the new
  * transparent-PNG object path, or null (formatter off, a slabbed coin the
@@ -53,14 +84,12 @@ export async function cutoutStoredPhoto(path: string): Promise<string | null> {
   try {
     const { data: blob, error } = await admin.storage.from(BUCKET).download(path);
     if (error || !blob) return null;
-    const form = new FormData();
-    form.append("file", blob, "coin");
-    const res = await fetch(`${FORMATTER_URL}/cutout`, {
-      method: "POST",
-      headers: { "X-API-Key": FORMATTER_API_KEY as string },
-      body: form,
+    const res = await postFormatter("/cutout", () => {
+      const form = new FormData();
+      form.append("file", blob, "coin");
+      return form;
     });
-    if (!res.ok) return null;
+    if (!res || !res.ok) return null;
     const out = (await res.json()) as {
       cut_out?: boolean;
       image_png_base64?: string | null;
@@ -86,15 +115,13 @@ export async function flattenStoredPhoto(
   try {
     const { data: blob, error } = await admin.storage.from(BUCKET).download(path);
     if (error || !blob) return null;
-    const form = new FormData();
-    form.append("file", blob, "coin");
-    form.append("background", background);
-    const res = await fetch(`${FORMATTER_URL}/flatten`, {
-      method: "POST",
-      headers: { "X-API-Key": FORMATTER_API_KEY as string },
-      body: form,
+    const res = await postFormatter("/flatten", () => {
+      const form = new FormData();
+      form.append("file", blob, "coin");
+      form.append("background", background);
+      return form;
     });
-    if (!res.ok) return null;
+    if (!res || !res.ok) return null;
     const out = (await res.json()) as { image_png_base64?: string | null };
     if (!out?.image_png_base64) return null;
     return storePng(admin, folderOf(path), out.image_png_base64);
@@ -117,15 +144,13 @@ export async function rotateStoredPhoto(
   try {
     const { data: blob, error } = await admin.storage.from(BUCKET).download(path);
     if (error || !blob) return null;
-    const form = new FormData();
-    form.append("file", blob, "coin.png");
-    form.append("degrees", String(degrees));
-    const res = await fetch(`${FORMATTER_URL}/rotate`, {
-      method: "POST",
-      headers: { "X-API-Key": FORMATTER_API_KEY as string },
-      body: form,
+    const res = await postFormatter("/rotate", () => {
+      const form = new FormData();
+      form.append("file", blob, "coin.png");
+      form.append("degrees", String(degrees));
+      return form;
     });
-    if (!res.ok) return null;
+    if (!res || !res.ok) return null;
     const out = (await res.json()) as { image_png_base64?: string | null };
     if (!out?.image_png_base64) return null;
     return storePng(admin, folderOf(path), out.image_png_base64);
@@ -161,28 +186,24 @@ export async function compositeStoredPhotos(
   const admin = createAdminClient();
   if (!admin) return null;
   try {
-    const form = new FormData();
-    let n = 0;
+    const blobs: Blob[] = [];
     for (const p of paths.slice(0, 8)) {
       const dl = await admin.storage.from(BUCKET).download(p);
-      if (dl.data) {
-        form.append("files", dl.data, `photo-${n}`);
-        n += 1;
-      }
+      if (dl.data) blobs.push(dl.data);
     }
-    if (n === 0) return null;
-    form.append("background", background || "shadow");
-    form.append("reflection", adjust.reflection ? "true" : "false");
-    form.append("floor_glow", adjust.floorGlow ? "true" : "false");
-    form.append("floor_shadow", adjust.floorShadow ? "true" : "false");
-    if (adjust.gap != null) form.append("gap", String(adjust.gap));
-    if (adjust.padding != null) form.append("padding", String(adjust.padding));
-    const res = await fetch(`${FORMATTER_URL}/composite`, {
-      method: "POST",
-      headers: { "X-API-Key": FORMATTER_API_KEY as string },
-      body: form,
+    if (blobs.length === 0) return null;
+    const res = await postFormatter("/composite", () => {
+      const form = new FormData();
+      blobs.forEach((b, i) => form.append("files", b, `photo-${i}`));
+      form.append("background", background || "shadow");
+      form.append("reflection", adjust.reflection ? "true" : "false");
+      form.append("floor_glow", adjust.floorGlow ? "true" : "false");
+      form.append("floor_shadow", adjust.floorShadow ? "true" : "false");
+      if (adjust.gap != null) form.append("gap", String(adjust.gap));
+      if (adjust.padding != null) form.append("padding", String(adjust.padding));
+      return form;
     });
-    if (!res.ok) return null;
+    if (!res || !res.ok) return null;
     const out = (await res.json()) as {
       composited?: boolean;
       image_png_base64?: string | null;
