@@ -21,6 +21,30 @@ export function formatterConfigured(): boolean {
   return !!FORMATTER_URL && !!FORMATTER_API_KEY;
 }
 
+/**
+ * Best-effort wake-up ping. The Space sleeps when idle; hitting its public
+ * /health endpoint starts it waking. Fired when the user opens the upload page
+ * so the cold start overlaps with them choosing photos, instead of hitting them
+ * on the first "Remove background" click. /health needs no API key. Uses a
+ * short timeout — we only need to trigger the wake, not wait for it — and never
+ * throws.
+ */
+export async function wakeFormatter(): Promise<void> {
+  if (!FORMATTER_URL) return;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    await fetch(`${FORMATTER_URL}/health`, {
+      signal: ctrl.signal,
+      cache: "no-store",
+    });
+  } catch {
+    /* asleep / timeout / network — the request still kicked off the wake */
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function folderOf(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "misc";
 }

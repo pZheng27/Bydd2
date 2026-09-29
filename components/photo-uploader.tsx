@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -8,7 +9,7 @@ import {
   type PointerEvent as RPointerEvent,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { beautifyPhoto, rotatePhoto } from "@/app/photo-actions";
+import { beautifyPhoto, rotatePhoto, warmFormatter } from "@/app/photo-actions";
 import { Lightbox } from "@/components/lightbox";
 import {
   CompositeCanvas,
@@ -182,6 +183,13 @@ export function PhotoUploader({
     nw: number; // natural width of the cut-out being spun
     nh: number; // natural height
   } | null>(null);
+
+  // Wake the (sleep-when-idle) formatter as soon as the upload UI opens, so the
+  // cold start overlaps with the user choosing and adding photos instead of
+  // landing on their first "Remove background" click. Fire-and-forget.
+  useEffect(() => {
+    warmFormatter().catch(() => {});
+  }, []);
 
   const urlOf = (path: string) =>
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;

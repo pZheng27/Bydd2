@@ -6,6 +6,7 @@ import {
   compositeStoredPhotos,
   flattenStoredPhoto,
   rotateStoredPhoto,
+  wakeFormatter,
   type CompositeAdjust,
 } from "@/lib/enhance";
 
@@ -15,6 +16,15 @@ async function isSignedIn(): Promise<boolean> {
     data: { user },
   } = await supabase.auth.getUser();
   return !!user;
+}
+
+/**
+ * Warm up the formatter so it's awake before the user needs it — fire-and-forget
+ * from the upload page on load. Best-effort; requires a signed-in user.
+ */
+export async function warmFormatter(): Promise<void> {
+  if (!(await isSignedIn())) return;
+  await wakeFormatter();
 }
 
 /**
