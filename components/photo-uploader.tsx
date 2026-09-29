@@ -161,6 +161,10 @@ export function PhotoUploader({
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragIndex = useRef<number | null>(null);
   const canvasRef = useRef<CompositeCanvasHandle>(null);
+  // The compositeLookKey() the current baked composite was made from. State (not
+  // a ref) so the render can compare it to decide if the composite is still up
+  // to date; set only in saveComposite, never in an effect.
+  const [bakedKey, setBakedKey] = useState("");
   // Free-angle drag-to-spin: live preview angle (plus the cut-out's natural
   // size, so the preview can scale to fit) for the slot being dragged.
   const [spin, setSpin] = useState<{
@@ -510,7 +514,7 @@ export function PhotoUploader({
   }
 
   /** Bake the live canvas at full resolution and store it as the composite. */
-  async function saveComposite() {
+  async function saveComposite(): Promise<string | null> {
     setBusy("compose");
     setError(null);
     setNote(null);
@@ -518,7 +522,7 @@ export function PhotoUploader({
       const blob = await canvasRef.current?.export2048();
       if (!blob) {
         setError("Couldn't build the composite. Please try again.");
-        return;
+        return null;
       }
       const path = `${folder}/${crypto.randomUUID()}.png`;
       const { error } = await supabase.storage
@@ -526,11 +530,49 @@ export function PhotoUploader({
         .upload(path, blob, { contentType: "image/png", upsert: false });
       if (error) {
         setError(error.message);
-        return;
+        return null;
       }
       setComposite(path);
+      // Remember the look this copy was baked from, so we know when it's stale.
+      setBakedKey(compositeLookKey());
+      return path;
     } finally {
       setBusy(null);
+    }
+  }
+
+  // The "make this the main photo" checkbox also bakes the composite (there's no
+  // separate Save button): ticking it exports and uploads the composite once.
+  // A signature of everything that affects how the composite looks. The baked
+  // copy is only valid while this matches what it was baked from — so changing
+  // the background or any adjustment marks it stale (no stale submit), without
+  // needing an effect that clears state.
+  function compositeLookKey() {
+    return [
+      bg,
+      bgColor,
+      gap,
+      padding,
+      reflection,
+      floorGlow,
+      floorShadow,
+      reflLen,
+      reflStr,
+      reflSpread,
+      reflDepth,
+      reflSkew,
+      cropTop,
+      cropBottom,
+    ].join("|");
+  }
+
+  async function toggleCompositePrimary(checked: boolean) {
+    setCompositePrimary(checked);
+    // (Re)bake if we don't have an up-to-date composite for the current look.
+    const fresh = !!composite && bakedKey === compositeLookKey();
+    if (checked && !fresh) {
+      const path = await saveComposite();
+      if (!path) setCompositePrimary(false); // bake failed — untick
     }
   }
 
@@ -568,11 +610,16 @@ export function PhotoUploader({
   }
 
   const photoPaths = slots.map((s) => slotDisplay(s));
-  const submitPhotos: string[] = composite
-    ? compositePrimary
+  // A baked composite is only valid while its look hasn't changed since it was
+  // saved — changing the background or any adjustment marks it stale.
+  const compositeFresh = !!composite && bakedKey === compositeLookKey();
+  // The composite is included (as the main photo) only when the user ticks the
+  // "make it the main photo" box (which bakes it) and it's still up to date.
+  // Otherwise just the uploaded photos are submitted.
+  const submitPhotos: string[] =
+    compositePrimary && compositeFresh && composite
       ? [composite, ...photoPaths]
-      : [...photoPaths, composite]
-    : photoPaths;
+      : photoPaths;
 
   // Empty state: labelled Obverse/Reverse boxes for the first two photos.
   const placeholders = slots.length < 2 ? SLOT_LABELS.slice(slots.length) : [];
@@ -955,41 +1002,71 @@ export function PhotoUploader({
                   }}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={saveComposite}
-                  disabled={disabled}
-                  className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
-                >
-                  {busy === "compose"
-                    ? "Saving…"
-                    : composite
-                      ? "Update composite"
-                      : "Save composite"}
-                </button>
-                {composite && (
-                  <span className="text-xs text-muted-foreground">Saved ✓</span>
-                )}
-              </div>
-              {composite && (
-                <label className="flex max-w-xs items-start gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={compositePrimary}
-                    onChange={(e) => setCompositePrimary(e.target.checked)}
-                    disabled={disabled}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    Use the composite as the listing&apos;s main photo.{" "}
-                    {compositePrimary
-                      ? "Your uploaded photos are kept alongside it."
-                      : "Your first uploaded photo will be the main image instead."}
-                  </span>
-                </label>
-              )}
+              <label className="flex max-w-xs items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={compositePrimary && compositeFresh}
+                  onChange={(e) => toggleCompositePrimary(e.target.checked)}
+                  disabled={busy === "compose"}
+                  className="mt-0.5"
+                />
+                <span>
+                  Use the composite as the listing&apos;s main photo — your
+                  uploaded photos are kept alongside it.
+                  {busy === "compose" && (
+                    <span className="text-foreground"> Saving…</span>
+                  )}
+                </span>
+              </label>
             </div>
+
+            {/* Plain composite: just a background colour (it auto-renders). */}
+            {bg === "plain" && (
+              <div className="space-y-2 sm:w-56">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Background
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {["#ffffff", "#000000", "#f4f4f5", "#1e293b", "#3f3f46"].map(
+                    (c) => {
+                      const active =
+                        (bgColor || "#ffffff").toLowerCase() === c.toLowerCase();
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setBgColor(c)}
+                          aria-label={`Background ${c}`}
+                          className={
+                            "h-7 w-7 rounded-full border " +
+                            (active
+                              ? "ring-2 ring-ring ring-offset-1"
+                              : "hover:opacity-80")
+                          }
+                          style={{ backgroundColor: c }}
+                        />
+                      );
+                    },
+                  )}
+                  <label
+                    className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2 text-xs hover:bg-muted"
+                    title="Pick any colour"
+                  >
+                    <input
+                      type="color"
+                      value={bgColor || "#ffffff"}
+                      onChange={(e) => setBgColor(e.target.value)}
+                      className="h-4 w-4 cursor-pointer border-0 bg-transparent p-0"
+                    />
+                    Custom
+                  </label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Defaults to white — pick a colour and the composite updates
+                  instantly.
+                </p>
+              </div>
+            )}
 
             {/* Studio adjustments — Shadow only; the plain composite
                 auto-renders in a fixed format (sample composite.jpg). */}
