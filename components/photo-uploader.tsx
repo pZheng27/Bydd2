@@ -8,11 +8,7 @@ import {
   type PointerEvent as RPointerEvent,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  beautifyPhoto,
-  flattenPhoto,
-  rotatePhoto,
-} from "@/app/photo-actions";
+import { beautifyPhoto, rotatePhoto } from "@/app/photo-actions";
 import { Lightbox } from "@/components/lightbox";
 import {
   CompositeCanvas,
@@ -296,6 +292,59 @@ export function PhotoUploader({
     }
   }
 
+  function loadCorsImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = src;
+    });
+  }
+
+  /**
+   * Place a (transparent) cut-out on a solid colour in the browser — no server
+   * round-trip. Replaces the old /flatten service call: it draws the cut-out on
+   * a colour-filled canvas and uploads the small JPEG straight to storage, so
+   * "Remove background" and colour changes don't wait on a second service call.
+   * The result is opaque (coin on a solid colour), so it's saved as a JPEG —
+   * far smaller than the transparent PNG /flatten returned, so the upload is
+   * quick. Returns the stored path, or null (invalid colour, or a load / export
+   * / upload failure) — callers fall back to the transparent cut-out.
+   */
+  async function placeOnColor(
+    cutoutPath: string,
+    hex: string,
+  ): Promise<string | null> {
+    const color = normalizeHex(hex);
+    if (!color) return null; // e.g. "transparent" — nothing to flatten onto
+    try {
+      const img = await loadCorsImage(urlOf(cutoutPath));
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      if (!w || !h) return null;
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0);
+      const blob = await new Promise<Blob | null>((r) =>
+        canvas.toBlob(r, "image/jpeg", 0.95),
+      );
+      if (!blob) return null;
+      const path = `${folder}/${crypto.randomUUID()}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from("item-photos")
+        .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+      return upErr ? null : path;
+    } catch {
+      return null;
+    }
+  }
+
   async function removeBackground(id: string) {
     const slot = slots.find((s) => s.id === id);
     if (!slot) return;
@@ -311,7 +360,7 @@ export function PhotoUploader({
         return;
       }
       // Place the cut-out on white by default, tight to the coin (no padding).
-      const colored = await flattenPhoto(cut, DEFAULT_BG);
+      const colored = await placeOnColor(cut, DEFAULT_BG);
       const updated = slots.map((s) =>
         s.id === id
           ? {
@@ -343,7 +392,7 @@ export function PhotoUploader({
     setBusy(`color:${id}`);
     setError(null);
     try {
-      const result = await flattenPhoto(slot.cutout, next);
+      const result = await placeOnColor(slot.cutout, next);
       if (result) {
         setSlots((prev) =>
           prev.map((s) => (s.id === id ? { ...s, bg: next, colored: result } : s)),
@@ -372,7 +421,7 @@ export function PhotoUploader({
         setError("Couldn't rotate that photo. Please try again.");
         return;
       }
-      const colored = await flattenPhoto(rotated, slot.bg);
+      const colored = await placeOnColor(rotated, slot.bg);
       const updated = slots.map((s) =>
         s.id === id
           ? { ...s, angle: norm, cutout: rotated, colored: colored ?? rotated }
