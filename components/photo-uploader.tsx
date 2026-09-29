@@ -429,20 +429,11 @@ export function PhotoUploader({
       materialize(sp.id, finalAngle);
   }
 
-  // Live rotation preview: rotate around centre AND scale down so the whole
-  // cut-out stays inside its square tile (no clipped rim), matching what the
-  // server returns after it re-crops the rotated coin — so nothing jumps when
-  // the drag is released.
+  // Live rotation preview: rotate in place around the centre at the current
+  // size — no scaling. The coin just spins; its size stays put.
   function spinStyle(s: Slot): CSSProperties | undefined {
     if (!spin || spin.id !== s.id) return undefined;
-    const rad = (spin.angle * Math.PI) / 180;
-    const c = Math.abs(Math.cos(rad));
-    const si = Math.abs(Math.sin(rad));
-    const long = Math.max(spin.nw, spin.nh);
-    const w = spin.nw / long; // content size within the tile (0..1)
-    const h = spin.nh / long;
-    const k = 1 / Math.max(w * c + h * si, w * si + h * c);
-    return { transform: `rotate(${spin.angle}deg) scale(${k})` };
+    return { transform: `rotate(${spin.angle}deg)` };
   }
 
   function removeSlot(id: string) {
