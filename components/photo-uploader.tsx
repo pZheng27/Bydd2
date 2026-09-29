@@ -141,6 +141,9 @@ export function PhotoUploader({
   const [cropBottom, setCropBottom] = useState(0); // bottom edge %
   const [bgColor, setBgColor] = useState(""); // "" = the style's default backdrop
   const [busy, setBusy] = useState<string | null>(null);
+  // Uploads are tracked separately from processing (busy) so an already-added
+  // photo can be worked on while another photo is still uploading.
+  const [uploading, setUploading] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -185,7 +188,7 @@ export function PhotoUploader({
     return s.colored ?? s.cutout;
   }
   const slotUrl = (s: Slot) => urlOf(slotDisplay(s));
-  const disabled = busy !== null;
+  const disabled = busy !== null || uploading;
 
   function compositeSlots(source: Slot[] = slots): Slot[] {
     if (source.length <= 2) return source;
@@ -220,7 +223,7 @@ export function PhotoUploader({
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (files.length === 0) return;
-    setBusy("upload");
+    setUploading(true);
     setError(null);
     setNote(null);
     try {
@@ -242,7 +245,7 @@ export function PhotoUploader({
       }
       resetDerived();
     } finally {
-      setBusy(null);
+      setUploading(false);
     }
   }
 
@@ -277,6 +280,8 @@ export function PhotoUploader({
       setSlots(updated);
       // The live composite canvas reads each coin's cut-out, so it updates on
       // its own — no re-generation needed here.
+    } catch {
+      setError("Couldn't remove the background — please try again.");
     } finally {
       setBusy(null);
     }
@@ -721,7 +726,7 @@ export function PhotoUploader({
                   <button
                     type="button"
                     onClick={() => removeBackground(s.id)}
-                    disabled={disabled}
+                    disabled={busy !== null}
                     className="w-[212px] rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60"
                   >
                     {busy === `bg:${s.id}` ? "Removing…" : "Remove background"}
