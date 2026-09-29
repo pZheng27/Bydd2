@@ -21,8 +21,7 @@ import {
 
 type Slot = {
   id: string;
-  original: string; // storage path; "" until the background upload finishes
-  localUrl?: string; // instant in-browser preview of the original (no network)
+  original: string;
   baseCutout: string | null; // un-rotated cut-out; rotation re-derives from this
   cutout: string | null; // current cut-out (baseCutout rotated by `angle`)
   angle: number; // rotation in degrees, clockwise
@@ -185,12 +184,7 @@ export function PhotoUploader({
     if (s.bg === "transparent") return s.cutout;
     return s.colored ?? s.cutout;
   }
-  // For the original (un-cut-out) photo, show the instant local preview if we
-  // have one — no waiting on the upload and no re-downloading the full image.
-  const slotUrl = (s: Slot): string => {
-    if (!s.cutout && s.localUrl) return s.localUrl;
-    return urlOf(slotDisplay(s));
-  };
+  const slotUrl = (s: Slot) => urlOf(slotDisplay(s));
   const disabled = busy !== null;
 
   function compositeSlots(source: Slot[] = slots): Slot[] {
@@ -223,47 +217,30 @@ export function PhotoUploader({
   }
 
   async function onAdd(e: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []).slice(0, 8);
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (files.length === 0) return;
+    setBusy("upload");
     setError(null);
     setNote(null);
-
-    // Show each photo instantly from a local preview, then upload in the
-    // background (all at once) and fill in its stored path when ready — so the
-    // tiles appear immediately instead of waiting on the upload to finish.
-    const pending = files.map((file) => ({
-      file,
-      id: crypto.randomUUID(),
-      localUrl: URL.createObjectURL(file),
-    }));
-    setSlots((prev) => [
-      ...prev,
-      ...pending.map((p) => ({
-        id: p.id,
-        original: "",
-        localUrl: p.localUrl,
-        baseCutout: null,
-        cutout: null,
-        angle: 0,
-        bg: "transparent",
-        colored: null,
-      })),
-    ]);
-    resetDerived();
-
-    setBusy("upload");
     try {
-      await Promise.all(
-        pending.map(async (p) => {
-          const path = await upload(p.file);
-          setSlots((prev) =>
-            prev.map((s) =>
-              s.id === p.id ? { ...s, original: path ?? "" } : s,
-            ),
-          );
-        }),
-      );
+      for (const file of files.slice(0, 8)) {
+        const path = await upload(file);
+        if (!path) continue;
+        setSlots((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            original: path,
+            baseCutout: null,
+            cutout: null,
+            angle: 0,
+            bg: "transparent",
+            colored: null,
+          },
+        ]);
+      }
+      resetDerived();
     } finally {
       setBusy(null);
     }
@@ -551,7 +528,7 @@ export function PhotoUploader({
     setBgColor("");
   }
 
-  const photoPaths = slots.map((s) => slotDisplay(s)).filter(Boolean);
+  const photoPaths = slots.map((s) => slotDisplay(s));
   const submitPhotos: string[] = composite
     ? compositePrimary
       ? [composite, ...photoPaths]
