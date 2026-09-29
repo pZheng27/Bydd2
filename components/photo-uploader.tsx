@@ -424,8 +424,7 @@ export function PhotoUploader({
    * the user already cut out (its own "Remove background") is reused as-is. The
    * composite only ever shows cut-outs, never the original background, so if a
    * coin can't be cut out we surface an error and don't open the composite.
-   * Both coins are cut out in parallel so a two-coin composite isn't twice as
-   * slow.
+   * Sequential, to be gentle on the single-worker formatter.
    */
   async function makeCompositeCutouts() {
     const need = compositeSlots().filter(
@@ -436,20 +435,13 @@ export function PhotoUploader({
     setError(null);
     setNote(null);
     try {
-      const results = await Promise.all(
-        need.map(async (s) => ({ id: s.id, cut: await beautifyPhoto(s.original) })),
-      );
-      const done = results.filter(
-        (r): r is { id: string; cut: string } => !!r.cut,
-      );
-      if (done.length) {
-        setCompositeCutouts((prev) => {
-          const next = { ...prev };
-          for (const r of done) next[r.id] = r.cut;
-          return next;
-        });
+      let anyFail = false;
+      for (const s of need) {
+        const cut = await beautifyPhoto(s.original);
+        if (cut) setCompositeCutouts((prev) => ({ ...prev, [s.id]: cut }));
+        else anyFail = true;
       }
-      if (done.length < need.length) {
+      if (anyFail) {
         // The composite must never show an original background, so don't open
         // it — tell the user and let them retry (or keep a slab in its holder).
         setError(
