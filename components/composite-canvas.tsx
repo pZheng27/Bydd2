@@ -10,6 +10,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { applyTone, isNeutralTone, toneKey, type Tone } from "@/lib/photo-tone";
 
 // Live composite preview, rendered entirely in the browser so every adjustment
 // responds instantly (no server round-trip). A faithful port of the formatter's
@@ -138,13 +139,45 @@ function customBackdrop(studio: boolean, hex: string, W: number, H: number) {
   return c;
 }
 
+/** A coin layer: the loaded cut-out, or a brightness/contrast-adjusted copy. */
+type CoinSrc = HTMLImageElement | HTMLCanvasElement;
+const dimsOf = (c: CoinSrc) =>
+  c instanceof HTMLImageElement
+    ? { w: c.naturalWidth || 1, h: c.naturalHeight || 1 }
+    : { w: c.width || 1, h: c.height || 1 };
+
+/**
+ * A copy of the coin with brightness/contrast applied (same maths as the
+ * thumbnails' CSS filter). `maxEdge` caps the size for the fast live preview;
+ * the full-resolution export passes Infinity. Neutral tone → the image itself.
+ */
+function tonedCoin(img: HTMLImageElement, t: Tone | undefined, maxEdge: number): CoinSrc {
+  if (!t || isNeutralTone(t)) return img;
+  const { w, h } = dimsOf(img);
+  const k = Math.min(1, maxEdge / Math.max(w, h));
+  const c = mk(w * k, h * k);
+  const x = c.getContext("2d", { willReadFrequently: true })!;
+  x.imageSmoothingQuality = "high";
+  x.drawImage(img, 0, 0, c.width, c.height);
+  try {
+    const data = x.getImageData(0, 0, c.width, c.height);
+    applyTone(data.data, t);
+    x.putImageData(data, 0, 0);
+  } catch {
+    return img; // pixels unreadable (cross-origin) — fall back to unadjusted
+  }
+  return c;
+}
+
 /** side_by_side: size-match the coins to one height and join with a gap. */
-function combine(coins: HTMLImageElement[], gapPct: number) {
+function combine(coins: CoinSrc[], gapPct: number) {
   if (coins.length === 1) return coins[0];
   const [o, r] = coins;
-  const th = Math.max(o.naturalHeight || 1, r.naturalHeight || 1);
-  const ow = Math.max(1, Math.round(((o.naturalWidth || 1) * th) / (o.naturalHeight || 1)));
-  const rw = Math.max(1, Math.round(((r.naturalWidth || 1) * th) / (r.naturalHeight || 1)));
+  const od = dimsOf(o),
+    rd = dimsOf(r);
+  const th = Math.max(od.h, rd.h);
+  const ow = Math.max(1, Math.round((od.w * th) / od.h));
+  const rw = Math.max(1, Math.round((rd.w * th) / rd.h));
   const gap = Math.max(1, Math.round((th * gapPct) / 100));
   const c = mk(ow + gap + rw, th);
   const x = c.getContext("2d")!;
@@ -205,7 +238,7 @@ function warpReflection(rc: HTMLCanvasElement, b: number, d: number, k: number) 
 /** The square scene (may grow taller for a long reflection). */
 function renderScene(
   cv: HTMLCanvasElement,
-  coins: HTMLImageElement[],
+  coins: CoinSrc[],
   bgImg: HTMLImageElement | null,
   studio: boolean,
   p: CanvasAdjust,
@@ -342,7 +375,7 @@ const PLAIN_SIDE = 0.04; // side margin as a fraction of the combined width
 
 function renderPlain(
   target: HTMLCanvasElement,
-  coins: HTMLImageElement[],
+  coins: CoinSrc[],
   bgColor: string,
 ) {
   const coin = combine(coins, PLAIN_GAP);
@@ -365,7 +398,7 @@ function renderPlain(
 /** Full render: the square scene, then top/bottom edges cropped / extended. */
 function renderFull(
   target: HTMLCanvasElement,
-  coins: HTMLImageElement[],
+  coins: CoinSrc[],
   bgImg: HTMLImageElement | null,
   studio: boolean,
   p: CanvasAdjust,
@@ -439,13 +472,22 @@ export const CompositeCanvas = forwardRef<
   CompositeCanvasHandle,
   {
     coinUrls: string[];
+    /** Per-coin brightness/contrast, same order as coinUrls. */
+    coinTones?: Tone[];
     background: string;
     /** Drag callback for the perspective / light-direction handles. */
     onPerspective?: (p: PerspectiveChange) => void;
   } & CanvasAdjust
->(function CompositeCanvas({ coinUrls, background, onPerspective, ...p }, ref) {
+>(function CompositeCanvas(
+  { coinUrls, coinTones, background, onPerspective, ...p },
+  ref,
+) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const coinsRef = useRef<HTMLImageElement[]>([]);
+  const rawRef = useRef<HTMLImageElement[]>([]); // coins as loaded
+  const coinsRef = useRef<CoinSrc[]>([]); // preview-size, tone-adjusted copies
+  const tonesRef = useRef(coinTones);
+  tonesRef.current = coinTones;
+  const tonesKey = (coinTones ?? []).map(toneKey).join("|");
   const bgRef = useRef<HTMLImageElement | null>(null);
   const hlRef = useRef<HTMLDivElement>(null); // reflection bottom-left
   const hrRef = useRef<HTMLDivElement>(null); // reflection bottom-right
@@ -544,7 +586,11 @@ export const CompositeCanvas = forwardRef<
         new Promise<Blob | null>((resolve) => {
           if (!coinsRef.current.length) return resolve(null);
           const off = mk(OUT, OUT);
-          renderFull(off, coinsRef.current, bgRef.current, studio, adjust);
+          // Full-resolution toned copies, so the saved composite stays sharp.
+          const full = rawRef.current.map((img, i) =>
+            tonedCoin(img, tonesRef.current?.[i], Infinity),
+          );
+          renderFull(off, full, bgRef.current, studio, adjust);
           try {
             off.toBlob((b) => resolve(b), "image/png");
           } catch {
@@ -553,7 +599,7 @@ export const CompositeCanvas = forwardRef<
         }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [studio, ...Object.values(adjust)],
+    [studio, tonesKey, ...Object.values(adjust)],
   );
 
   useEffect(() => {
@@ -572,7 +618,7 @@ export const CompositeCanvas = forwardRef<
     ])
       .then(([coins, bgimg]) => {
         if (cancelled) return;
-        coinsRef.current = coins;
+        rawRef.current = coins;
         bgRef.current = bgimg;
         setLoaded((n) => n + 1);
       })
@@ -582,6 +628,18 @@ export const CompositeCanvas = forwardRef<
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
+  // Re-derive the toned coins when the photos load or a slider moves. Capped
+  // at 1024px so the live preview keeps up while dragging.
+  useEffect(() => {
+    coinsRef.current = rawRef.current.map((img, i) =>
+      tonedCoin(img, tonesRef.current?.[i], 1024),
+    );
+    const cv = canvasRef.current;
+    if (cv) renderFull(cv, coinsRef.current, bgRef.current, studio, adjust);
+    placeHandles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, tonesKey]);
 
   useEffect(() => {
     const cv = canvasRef.current;

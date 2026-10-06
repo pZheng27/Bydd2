@@ -15,6 +15,15 @@ import {
   CompositeCanvas,
   type CompositeCanvasHandle,
 } from "@/components/composite-canvas";
+import {
+  applyTone,
+  DEFAULT_TONE,
+  isNeutralTone,
+  toneCss,
+  toneKey,
+  TONE_RANGE,
+  type Tone,
+} from "@/lib/photo-tone";
 
 type Slot = {
   id: string;
@@ -24,6 +33,10 @@ type Slot = {
   angle: number; // rotation in degrees, clockwise
   bg: "transparent" | string; // "transparent" or a hex colour, once cut out
   colored: string | null; // the (rotated) cut-out placed on `bg` (a hex colour)
+  tone: Tone; // brightness / contrast, previewed live and baked into `toned`
+  // The photo as shown (slotDisplay) with `tone` baked in, saved to storage.
+  // Valid only while `key` still matches tonedKey(slot).
+  toned: { key: string; path: string } | null;
 };
 
 const DEFAULT_BG = "#ffffff"; // where a cut-out coin is placed by default
@@ -166,6 +179,8 @@ export function PhotoUploader({
   // a ref) so the render can compare it to decide if the composite is still up
   // to date; set only in saveComposite, never in an effect.
   const [bakedKey, setBakedKey] = useState("");
+  // A quiet re-save of the composite after an adjustment is in progress.
+  const [rebaking, setRebaking] = useState(false);
   // Free-angle drag-to-spin: live preview angle (plus the cut-out's natural
   // size, so the preview can scale to fit) for the slot being dragged.
   const [spin, setSpin] = useState<{
@@ -200,6 +215,13 @@ export function PhotoUploader({
     return s.colored ?? s.cutout;
   }
   const slotUrl = (s: Slot) => urlOf(slotDisplay(s));
+  // What the baked, tone-adjusted copy of a slot must match to be current.
+  const tonedKey = (s: Slot) => `${slotDisplay(s)}|${toneKey(s.tone)}`;
+  /** The photo that's actually saved: the tone-adjusted copy once it's ready. */
+  function slotFinal(s: Slot): string {
+    if (isNeutralTone(s.tone)) return slotDisplay(s);
+    return s.toned?.key === tonedKey(s) ? s.toned.path : slotDisplay(s);
+  }
   const disabled = busy !== null || uploading;
 
   function compositeSlots(source: Slot[] = slots): Slot[] {
@@ -211,6 +233,7 @@ export function PhotoUploader({
 
   function resetDerived() {
     setComposite(null);
+    setCompositePrimary(false);
     setPicking(false);
     setComposing(false);
     setCompositeCutouts({});
@@ -295,6 +318,8 @@ export function PhotoUploader({
             angle: 0,
             bg: "transparent",
             colored: null,
+            tone: DEFAULT_TONE,
+            toned: null,
           },
         ]);
       }
@@ -355,6 +380,94 @@ export function PhotoUploader({
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Bake a slot's brightness/contrast into a saved copy, in the browser. Only
+   * the coin is adjusted: a cut-out is toned first and then placed on its
+   * background colour, so a white backdrop stays pure white. Returns the stored
+   * path, or null on any failure (the unadjusted photo is used instead).
+   */
+  async function bakeTone(s: Slot): Promise<string | null> {
+    try {
+      const img = await loadCorsImage(urlOf(s.cutout ?? s.original));
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      if (!w || !h) return null;
+      const coin = document.createElement("canvas");
+      coin.width = w;
+      coin.height = h;
+      const cx = coin.getContext("2d", { willReadFrequently: true });
+      if (!cx) return null;
+      cx.drawImage(img, 0, 0);
+      const data = cx.getImageData(0, 0, w, h);
+      applyTone(data.data, s.tone);
+      cx.putImageData(data, 0, 0);
+
+      const color = s.cutout ? normalizeHex(s.bg) : null;
+      let out = coin;
+      if (color) {
+        out = document.createElement("canvas");
+        out.width = w;
+        out.height = h;
+        const ox = out.getContext("2d");
+        if (!ox) return null;
+        ox.fillStyle = color;
+        ox.fillRect(0, 0, w, h);
+        ox.drawImage(coin, 0, 0);
+      }
+      // A transparent cut-out must stay a PNG; everything else is opaque.
+      const png = !!s.cutout && !color;
+      const type = png ? "image/png" : "image/jpeg";
+      const blob = await new Promise<Blob | null>((r) =>
+        out.toBlob(r, type, 0.95),
+      );
+      if (!blob) return null;
+      const path = `${folder}/${crypto.randomUUID()}.${png ? "png" : "jpg"}`;
+      const { error: upErr } = await supabase.storage
+        .from("item-photos")
+        .upload(path, blob, { contentType: type, upsert: false });
+      return upErr ? null : path;
+    } catch {
+      return null;
+    }
+  }
+
+  // Sliders update the thumbnail instantly (CSS filter); the saved copy is
+  // baked shortly after the user stops dragging, and re-baked whenever the
+  // photo underneath changes (background removed, colour, rotation).
+  const toneJobs = slots
+    .filter((s) => !isNeutralTone(s.tone) && s.toned?.key !== tonedKey(s))
+    .map((s) => `${s.id}=${tonedKey(s)}`)
+    .join(",");
+  useEffect(() => {
+    if (!toneJobs) return;
+    const jobs = slots.filter(
+      (s) => !isNeutralTone(s.tone) && s.toned?.key !== tonedKey(s),
+    );
+    const t = setTimeout(() => {
+      for (const s of jobs) {
+        const key = tonedKey(s);
+        void bakeTone(s).then((path) => {
+          if (!path) return;
+          setSlots((prev) =>
+            prev.map((x) =>
+              x.id === s.id && tonedKey(x) === key
+                ? { ...x, toned: { key, path } }
+                : x,
+            ),
+          );
+        });
+      }
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toneJobs]);
+
+  function setSlotTone(id: string, over: Partial<Tone>) {
+    setSlots((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, tone: { ...s.tone, ...over } } : s)),
+    );
   }
 
   async function removeBackground(id: string) {
@@ -588,8 +701,11 @@ export function PhotoUploader({
   }
 
   /** Bake the live canvas at full resolution and store it as the composite. */
-  async function saveComposite(): Promise<string | null> {
-    setBusy("compose");
+  async function saveComposite(quiet = false): Promise<string | null> {
+    // A quiet re-save (after an adjustment) doesn't lock the controls, so the
+    // user can keep dragging sliders while it uploads.
+    if (quiet) setRebaking(true);
+    else setBusy("compose");
     setError(null);
     setNote(null);
     try {
@@ -611,7 +727,8 @@ export function PhotoUploader({
       setBakedKey(compositeLookKey());
       return path;
     } finally {
-      setBusy(null);
+      if (quiet) setRebaking(false);
+      else setBusy(null);
     }
   }
 
@@ -637,6 +754,8 @@ export function PhotoUploader({
       reflSkew,
       cropTop,
       cropBottom,
+      // Each coin's brightness/contrast also changes how the composite looks.
+      ...compositeSlots().map((s) => toneKey(s.tone)),
     ].join("|");
   }
 
@@ -683,7 +802,7 @@ export function PhotoUploader({
     setBgColor("");
   }
 
-  const photoPaths = slots.map((s) => slotDisplay(s));
+  const photoPaths = slots.map((s) => slotFinal(s));
   // A baked composite is only valid while its look hasn't changed since it was
   // saved — changing the background or any adjustment marks it stale.
   const compositeFresh = !!composite && bakedKey === compositeLookKey();
@@ -709,6 +828,20 @@ export function PhotoUploader({
     slots.length > 1 &&
     compositeCoins.length >= 2 &&
     compositeCoins.every((s) => !!coinCutout(s));
+
+  // Once the composite is the main photo, keep the saved copy in step with the
+  // live one: any change (a coin's brightness/contrast, or a composite
+  // adjustment) re-saves it shortly after the user stops adjusting.
+  const lookKey = compositeLookKey();
+  const compositeStale = compositePrimary && !!composite && !compositeFresh;
+  useEffect(() => {
+    if (!compositeStale || !compositeReady || rebaking || busy) return;
+    const t = setTimeout(() => {
+      void saveComposite(true);
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compositeStale, compositeReady, rebaking, busy, lookKey]);
 
   // Plain-English summary of the reflection's perspective (set by the drag handles).
   const perspParts: string[] = [];
@@ -761,6 +894,54 @@ export function PhotoUploader({
     );
   }
 
+  /** Brightness / contrast sliders under a photo — the thumbnail updates live. */
+  function toneControls(s: Slot) {
+    const row = (label: string, field: keyof Tone) => (
+      <label className="block">
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span className="font-medium uppercase tracking-wide">{label}</span>
+          <span className="tabular-nums">
+            {s.tone[field] === 100
+              ? "—"
+              : `${s.tone[field] > 100 ? "+" : ""}${s.tone[field] - 100}%`}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={TONE_RANGE[field][0]}
+          max={TONE_RANGE[field][1]}
+          value={s.tone[field]}
+          disabled={disabled}
+          onChange={(e) => setSlotTone(s.id, { [field]: +e.target.value })}
+          onDoubleClick={() => setSlotTone(s.id, { [field]: 100 })}
+          aria-label={label}
+          className="w-full accent-foreground"
+        />
+      </label>
+    );
+    const saving =
+      !isNeutralTone(s.tone) && s.toned?.key !== tonedKey(s);
+    return (
+      <div className="w-[212px] space-y-1">
+        {row("Brightness", "brightness")}
+        {row("Contrast", "contrast")}
+        {!isNeutralTone(s.tone) && (
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span>{saving ? "Saving…" : "Saved"}</span>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setSlotTone(s.id, DEFAULT_TONE)}
+              className="underline hover:text-foreground"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function roleRow(
     selectedId: string | null,
     otherId: string | null,
@@ -788,6 +969,7 @@ export function PhotoUploader({
               <img
                 src={slotUrl(s)}
                 alt=""
+                style={{ filter: toneCss(s.tone) }}
                 className="h-full w-full bg-muted object-contain"
               />
             </button>
@@ -820,19 +1002,45 @@ export function PhotoUploader({
                 className="space-y-1.5"
               >
                 <div className="relative h-[212px] w-[212px]">
-                  <div className="h-[212px] w-[212px] overflow-hidden rounded-md border bg-muted">
+                  <div
+                    className="h-[212px] w-[212px] overflow-hidden rounded-md border bg-muted"
+                    // Once cut out, fill the box with the coin's own background
+                    // colour (white by default) instead of the grey, so the
+                    // letterbox around the contained image is seamless.
+                    style={
+                      s.cutout && s.bg !== "transparent"
+                        ? { backgroundColor: s.bg }
+                        : undefined
+                    }
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={
                         spin && spin.id === s.id && s.baseCutout
                           ? urlOf(s.baseCutout)
-                          : slotUrl(s)
+                          : // While adjusting, show the bare cut-out over the
+                            // box's colour so only the coin is brightened, as
+                            // in the saved copy.
+                            s.cutout && !isNeutralTone(s.tone)
+                            ? urlOf(s.cutout)
+                            : slotUrl(s)
                       }
                       alt=""
-                      draggable={false}
-                      onClick={() => setZoom(slotUrl(s))}
-                      style={spinStyle(s)}
-                      className="h-[212px] w-[212px] cursor-zoom-in object-contain"
+                      // The whole photo is draggable to reorder (not just the ⠿
+                      // grip). Not while it's being spun. A plain click still
+                      // opens the lightbox — a click and a drag don't collide.
+                      draggable={!disabled && spin?.id !== s.id}
+                      onDragStart={(e) => {
+                        dragIndex.current = i;
+                        const card = cardRefs.current[i];
+                        if (card) e.dataTransfer.setDragImage(card, 20, 20);
+                      }}
+                      onDragEnd={() => {
+                        dragIndex.current = null;
+                      }}
+                      onClick={() => setZoom(urlOf(slotFinal(s)))}
+                      style={{ ...spinStyle(s), filter: toneCss(s.tone) }}
+                      className="h-[212px] w-[212px] cursor-grab object-contain active:cursor-grabbing"
                     />
                   </div>
                   <span
@@ -889,6 +1097,7 @@ export function PhotoUploader({
                 ) : (
                   bgOptions(s)
                 )}
+                {toneControls(s)}
               </div>
             ))}
 
@@ -943,10 +1152,12 @@ export function PhotoUploader({
 
           {slots.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Drag <span aria-hidden="true">⠿</span> to reorder — the first photo
-              (<span className="font-medium">Primary</span>) is your
-              listing&apos;s main image. After removing a background, drag{" "}
-              <span aria-hidden="true">↻</span> to spin a photo to any angle.
+              Drag a photo (or the <span aria-hidden="true">⠿</span> grip) to
+              reorder — the first photo (
+              <span className="font-medium">Primary</span>) is your
+              listing&apos;s main image. Click a photo to enlarge it. After
+              removing a background, drag <span aria-hidden="true">↻</span> to
+              spin it to any angle.
             </p>
           )}
 
@@ -1055,6 +1266,7 @@ export function PhotoUploader({
                 <CompositeCanvas
                   ref={canvasRef}
                   coinUrls={compositeCoins.map((s) => urlOf(coinCutout(s)!))}
+                  coinTones={compositeCoins.map((s) => s.tone)}
                   background={bg}
                   reflection={reflection}
                   floorGlow={floorGlow}
@@ -1076,18 +1288,20 @@ export function PhotoUploader({
                   }}
                 />
               </div>
-              <label className="flex max-w-xs items-start gap-2 text-xs text-muted-foreground">
+              <label className="flex max-w-xs cursor-pointer select-none items-start gap-2 text-xs text-muted-foreground">
                 <input
                   type="checkbox"
-                  checked={compositePrimary && compositeFresh}
+                  checked={compositePrimary}
                   onChange={(e) => toggleCompositePrimary(e.target.checked)}
                   disabled={busy === "compose"}
-                  className="mt-0.5"
+                  className="mt-0.5 cursor-pointer"
                 />
                 <span>
                   Use the composite as the listing&apos;s main photo — your
                   uploaded photos are kept alongside it.
-                  {busy === "compose" && (
+                  {(busy === "compose" ||
+                    rebaking ||
+                    (compositePrimary && !compositeFresh)) && (
                     <span className="text-foreground"> Saving…</span>
                   )}
                 </span>
