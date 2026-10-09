@@ -167,7 +167,7 @@ export default async function MessagesPage({
                           className={cn(
                             "max-w-[80%] rounded-lg px-3 py-2 text-sm",
                             mine
-                              ? "bg-foreground text-background"
+                              ? "bg-primary text-primary-foreground"
                               : "bg-muted text-foreground",
                           )}
                         >

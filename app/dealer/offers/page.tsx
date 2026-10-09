@@ -30,7 +30,7 @@ export default async function DealerOffersPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Offers received</h1>
+      <h1 className="text-2xl font-semibold">Offers Received</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Offers buyers have made on your coins. Accepting completes a{" "}
         <span className="font-medium">simulated</span> sale — no payment is taken.

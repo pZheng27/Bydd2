@@ -84,7 +84,7 @@ export default async function MarketItemPage({
         <CoinPhotos photos={photos} original={item.photos_original ?? []} />
 
         <div>
-          <h1 className="text-2xl font-semibold">{item.title || "Untitled coin"}</h1>
+          <h1 className="text-2xl font-semibold">{item.title || "Untitled Coin"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {gradeLabel(item)}
             {item.cert_number ? ` · Cert ${item.cert_number}` : ""}
@@ -104,14 +104,14 @@ export default async function MarketItemPage({
                 Sign in to buy it, add it to your watchlist, or make an offer.
               </p>
               <Link href="/login" className="mt-3 inline-block">
-                <Button>Sign in</Button>
+                <Button>Sign In</Button>
               </Link>
             </div>
           ) : (
             <div className="mt-6 space-y-4">
               <div className="flex gap-3">
                 <Link href={`/checkout/buy/${item.id}`} className="flex-1">
-                  <Button className="w-full">Buy now</Button>
+                  <Button className="w-full">Buy Now</Button>
                 </Link>
                 <form action={toggleSave}>
                   <input type="hidden" name="item_id" value={item.id} />
@@ -123,7 +123,7 @@ export default async function MarketItemPage({
               </div>
 
               <form action={makeOffer} className="space-y-2 rounded-lg border p-3">
-                <div className="text-sm font-medium">Make an offer</div>
+                <div className="text-sm font-medium">Make an Offer</div>
                 <input type="hidden" name="item_id" value={item.id} />
                 <input
                   name="price"
@@ -139,7 +139,7 @@ export default async function MarketItemPage({
                   className={inputCls}
                 />
                 <Button type="submit" variant="outline" className="w-full">
-                  Send offer
+                  Send Offer
                 </Button>
               </form>
 
@@ -164,7 +164,7 @@ export default async function MarketItemPage({
 
           {explainer && (
             <div className="mt-6 rounded-lg border bg-muted/30 p-4 text-sm">
-              <div className="font-medium">How this price moves</div>
+              <div className="font-medium">How this Price Moves</div>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
                 {explainer.spot_linked && (
                   <li>

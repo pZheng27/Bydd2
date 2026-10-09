@@ -28,7 +28,7 @@ export function OwnedCoinCard({
   const hasGrade = !!grade && grade !== "—";
   const desc = description?.trim();
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-md border border-border/60 bg-card transition-colors hover:border-foreground/40">
       <Link href={`/collection/${id}`} className="block">
         {photo ? (
           <CoinTileImage src={photo} alt={title} />
@@ -39,7 +39,7 @@ export function OwnedCoinCard({
         )}
         <div className="p-3">
           <div className="truncate text-sm font-medium tracking-tight">
-            {title || "Untitled coin"}
+            {title || "Untitled Coin"}
           </div>
           {desc ? (
             <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
@@ -57,8 +57,8 @@ export function OwnedCoinCard({
       <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         <Link
           href={`/collection/${id}/edit?from=${setId}`}
-          aria-label="Edit coin"
-          className="rounded-full border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:bg-background"
+          aria-label="Edit Coin"
+          className="rounded-sm border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm hover:bg-background"
         >
           Edit
         </Link>
@@ -78,7 +78,7 @@ export function OwnedCoinCard({
           <button
             type="submit"
             aria-label="Delete coin"
-            className="rounded-full border bg-background/90 px-2.5 py-1 text-xs font-medium text-destructive shadow-sm backdrop-blur hover:bg-background"
+            className="rounded-sm border bg-background/90 px-2.5 py-1 text-xs font-medium text-destructive shadow-sm hover:bg-background"
           >
             Delete
           </button>

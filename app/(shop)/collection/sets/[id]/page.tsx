@@ -158,7 +158,7 @@ export default async function ManageSetPage({
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Manage set</h1>
+          <h1 className="text-2xl font-semibold">Manage Set</h1>
           <p className="text-sm text-muted-foreground">
             {isSeries
               ? "Series set — tracks owned vs. missing coins from the catalog."
@@ -166,7 +166,7 @@ export default async function ManageSetPage({
           </p>
         </div>
         <Link href={`/collection?set=${set.id}`}>
-          <Button variant="outline">View grid</Button>
+          <Button variant="outline">View Grid</Button>
         </Link>
       </div>
 
@@ -219,7 +219,7 @@ export default async function ManageSetPage({
           </span>
         </label>
         <div className="flex justify-end border-t pt-3">
-          <Button type="submit">Save changes</Button>
+          <Button type="submit">Save Changes</Button>
         </div>
       </form>
 
@@ -264,7 +264,7 @@ function SeriesManager({
     <>
       <div className="mt-6">
         <h2 className="text-sm font-semibold">
-          Coins in this set{" "}
+          Coins in this Set{" "}
           <span className="font-normal text-muted-foreground">
             ({members.length})
           </span>
@@ -295,7 +295,7 @@ function SeriesManager({
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-semibold">Add coins from the catalog</h2>
+        <h2 className="text-sm font-semibold">Add Coins from the Catalog</h2>
         {addable.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             Every catalog coin is already in this set.
@@ -322,7 +322,7 @@ function FreeformManager({
     <>
       <div className="mt-6">
         <h2 className="text-sm font-semibold">
-          Coins in this set{" "}
+          Coins in this Set{" "}
           <span className="font-normal text-muted-foreground">
             ({coins.length})
           </span>
@@ -342,7 +342,7 @@ function FreeformManager({
                   <Thumb photo={c.photos?.[0]} />
                   <span>
                     <span className="block text-sm">
-                      {c.title || "Untitled coin"}
+                      {c.title || "Untitled Coin"}
                     </span>
                     <span className="block text-xs text-muted-foreground">
                       {gradeLabel(c)}
@@ -363,7 +363,7 @@ function FreeformManager({
       </div>
 
       <div className="mt-6">
-        <h2 className="text-sm font-semibold">Add coins from your collection</h2>
+        <h2 className="text-sm font-semibold">Add Coins from your Collection</h2>
         {addable.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             {coins.length === 0
@@ -387,7 +387,7 @@ function FreeformManager({
                   />
                   <Thumb photo={c.photos?.[0]} />
                   <span>
-                    <span className="block">{c.title || "Untitled coin"}</span>
+                    <span className="block">{c.title || "Untitled Coin"}</span>
                     <span className="block text-xs text-muted-foreground">
                       {gradeLabel(c)}
                     </span>
@@ -395,7 +395,7 @@ function FreeformManager({
                 </label>
               ))}
             </div>
-            <Button type="submit">Add selected</Button>
+            <Button type="submit">Add Selected</Button>
           </form>
         )}
       </div>

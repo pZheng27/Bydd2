@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 
 /**
  * Full-screen image overlay. Click the backdrop, press Escape, or hit ✕ to
@@ -99,11 +100,11 @@ export function Lightbox({ src, onClose }: { src: string; onClose: () => void })
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-lg leading-6 text-black shadow hover:bg-white"
+        className="absolute right-4 top-4 rounded-sm bg-white/90 px-2.5 py-1 text-lg leading-6 text-black shadow hover:bg-white"
       >
-        ✕
+        <X className="size-5" aria-hidden />
       </button>
-      <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/85 px-3 py-1 text-xs font-medium text-black shadow">
+      <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-sm bg-white/85 px-3 py-1 text-xs font-medium text-black shadow">
         Scroll to zoom · drag to pan · click outside to close
       </div>
     </div>

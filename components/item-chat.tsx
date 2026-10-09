@@ -76,7 +76,7 @@ export function ItemChat({
 
   return (
     <div className="rounded-xl border p-4">
-      <div className="text-sm font-medium">Pricing assistant</div>
+      <div className="text-sm font-medium">Pricing Assistant</div>
       <p className="mt-0.5 text-xs text-muted-foreground">
         Tell it how to price this coin in plain English — it sets up the rule for you.
       </p>
@@ -107,7 +107,7 @@ export function ItemChat({
             <div
               className={
                 m.role === "user"
-                  ? "max-w-[85%] whitespace-pre-line rounded-lg bg-foreground px-3 py-2 text-sm text-background"
+                  ? "max-w-[85%] whitespace-pre-line rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
                   : "max-w-[85%] whitespace-pre-line rounded-lg bg-muted px-3 py-2 text-sm"
               }
             >
@@ -133,7 +133,7 @@ export function ItemChat({
               type="button"
               onClick={() => send(s)}
               disabled={pending}
-              className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+              className="rounded-sm border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
               {s}
             </button>

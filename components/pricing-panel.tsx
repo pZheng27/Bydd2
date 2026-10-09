@@ -97,7 +97,7 @@ export function PricingPanel({
   return (
     <div className="rounded-xl border p-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-medium">Pricing rule</div>
+        <div className="text-sm font-medium">Pricing Rule</div>
         <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-muted-foreground">
           <span>
             Gold: {spotCents != null ? `${fmtMoney(spotCents)}/oz` : "—"}
@@ -163,7 +163,7 @@ export function PricingPanel({
             <form action={repriceItem} className="mt-2">
               <input type="hidden" name="item_id" value={item.id} />
               <Button type="submit" size="sm">
-                Reprice now
+                Reprice Now
               </Button>
             </form>
           ) : (
@@ -195,7 +195,7 @@ export function PricingPanel({
             size="sm"
             variant={ruleVisible ? "outline" : "default"}
           >
-            {ruleVisible ? "Hide" : "Show buyers"}
+            {ruleVisible ? "Hide" : "Show Buyers"}
           </Button>
         </form>
       </div>
@@ -246,7 +246,7 @@ export function PricingPanel({
         </div>
 
         <div className="col-span-2 mt-1 border-t pt-3 text-xs font-medium text-muted-foreground">
-          Demand &amp; comps (optional)
+          Demand &amp; Comps (optional)
         </div>
         <div>
           <label className="text-xs font-medium">Bump when popular (%)</label>
@@ -295,7 +295,7 @@ export function PricingPanel({
 
         <div className="col-span-2">
           <Button type="submit" size="sm">
-            {hasRule ? "Update rule" : "Set rule"}
+            {hasRule ? "Update Rule" : "Set Rule"}
           </Button>
         </div>
       </form>
@@ -304,7 +304,7 @@ export function PricingPanel({
         <form action={removePricingRule} className="mt-2">
           <input type="hidden" name="item_id" value={item.id} />
           <button className="text-xs text-muted-foreground underline hover:text-foreground">
-            Remove rule
+            Remove Rule
           </button>
         </form>
       )}

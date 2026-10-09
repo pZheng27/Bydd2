@@ -123,7 +123,7 @@ export default async function DealerHubPage() {
             <Button variant="outline">Import CSV</Button>
           </Link>
           <Link href="/dealer/inventory/new">
-            <Button>Add coin</Button>
+            <Button>Add Coin</Button>
           </Link>
         </div>
       </div>
@@ -136,7 +136,7 @@ export default async function DealerHubPage() {
           </p>
           <div className="mt-4 flex justify-center gap-2">
             <Link href="/dealer/inventory/new">
-              <Button>Add your first coin</Button>
+              <Button>Add your First Coin</Button>
             </Link>
             <Link href="/dealer/inventory/import">
               <Button variant="outline">Import CSV</Button>
@@ -165,7 +165,7 @@ export default async function DealerHubPage() {
           </div>
 
           <div className="mt-6">
-            <h2 className="text-sm font-semibold">Recent sales</h2>
+            <h2 className="text-sm font-semibold">Recent Sales</h2>
             {recentSales.length > 0 ? (
               <ul className="mt-2 divide-y rounded-xl border">
                 {recentSales.map((o, i) => (

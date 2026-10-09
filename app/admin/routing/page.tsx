@@ -58,7 +58,7 @@ export default async function AdminRoutingPage() {
   if (!admin) {
     return (
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-2xl font-semibold">Routing &amp; demand</h1>
+        <h1 className="text-2xl font-semibold">Routing &amp; Demand</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Admin data unavailable — the service key isn&apos;t configured.
         </p>
@@ -129,7 +129,7 @@ export default async function AdminRoutingPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-2xl font-semibold">Routing &amp; demand</h1>
+      <h1 className="text-2xl font-semibold">Routing &amp; Demand</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Every want, where it was routed, and which dealers are getting demand.
       </p>
@@ -142,7 +142,7 @@ export default async function AdminRoutingPage() {
       </div>
 
       {/* Demand by coin/series */}
-      <h2 className="mt-8 text-lg font-semibold">Top demand</h2>
+      <h2 className="mt-8 text-lg font-semibold">Top Demand</h2>
       {demandRanked.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">No open wants yet.</p>
       ) : (
@@ -152,7 +152,7 @@ export default async function AdminRoutingPage() {
               <div className="w-56 shrink-0 truncate text-sm">{k}</div>
               <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full bg-foreground"
+                  className="h-full bg-primary"
                   style={{ width: `${(n / demandRanked[0][1]) * 100}%` }}
                 />
               </div>
@@ -163,7 +163,7 @@ export default async function AdminRoutingPage() {
       )}
 
       {/* Wants & where they routed */}
-      <h2 className="mt-8 text-lg font-semibold">Wants &amp; routing</h2>
+      <h2 className="mt-8 text-lg font-semibold">Wants &amp; Routing</h2>
       {wants.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">
           No wants yet. When a collector creates one, it&apos;ll route here.
@@ -197,7 +197,7 @@ export default async function AdminRoutingPage() {
                           {rs.map((r) => (
                             <span
                               key={r.dealer_id}
-                              className={`rounded-full border px-2 py-0.5 text-xs ${statusChip(r.status)}`}
+                              className={`rounded-sm border px-2 py-0.5 text-xs ${statusChip(r.status)}`}
                               title={`score ${r.score} · ${r.status}`}
                             >
                               {dealerName.get(r.dealer_id) ?? "Dealer"} · {r.score}

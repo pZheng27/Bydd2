@@ -43,7 +43,7 @@ export default async function NewWantPage({
         <span>/</span>
         <span>Add</span>
       </div>
-      <h1 className="mt-1 text-2xl font-semibold">Add a want</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Add a Want</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Describe the coin you&apos;re looking for. Dealers get matched to it in a
         later session.
@@ -114,7 +114,7 @@ export default async function NewWantPage({
           >
             Cancel
           </Link>
-          <Button type="submit">Add want</Button>
+          <Button type="submit">Add Want</Button>
         </div>
       </form>
     </div>

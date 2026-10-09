@@ -104,7 +104,7 @@ export function CatalogCoinSearch({
       )}
 
       <Button type="submit" disabled={selected.size === 0}>
-        {selected.size > 0 ? `Add ${selected.size} selected` : "Add selected"}
+        {selected.size > 0 ? `Add ${selected.size} Selected` : "Add Selected"}
       </Button>
     </form>
   );

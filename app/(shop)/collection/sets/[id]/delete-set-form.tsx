@@ -25,7 +25,7 @@ export function DeleteSetForm({
     >
       <input type="hidden" name="id" value={setId} />
       <button className="rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted">
-        Delete this set
+        Delete this Set
       </button>
     </form>
   );

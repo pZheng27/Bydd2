@@ -86,13 +86,13 @@ export default async function DealerRequestsPage() {
                     <form action={acceptRequest}>
                       <input type="hidden" name="id" value={r.id} />
                       <Button type="submit" size="sm">
-                        Yes, I have it
+                        Yes, I Have it
                       </Button>
                     </form>
                     <form action={declineRequest}>
                       <input type="hidden" name="id" value={r.id} />
                       <Button type="submit" size="sm" variant="outline">
-                        Not right now
+                        Not Right Now
                       </Button>
                     </form>
                   </div>
@@ -104,7 +104,7 @@ export default async function DealerRequestsPage() {
           {resolved.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold text-muted-foreground">
-                Past requests
+                Past Requests
               </h2>
               <ul className="mt-2 divide-y rounded-xl border">
                 {resolved.map((r) => (
@@ -114,7 +114,7 @@ export default async function DealerRequestsPage() {
                   >
                     <span>{r.w.title || r.w.series || "a coin"}</span>
                     {r.status === "accepted" ? (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
+                      <span className="rounded-sm bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950 dark:text-green-300">
                         You have it
                       </span>
                     ) : (

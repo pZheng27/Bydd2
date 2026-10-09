@@ -134,7 +134,7 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
               <div
                 className={
                   m.role === "user"
-                    ? "max-w-[85%] whitespace-pre-line rounded-lg bg-foreground px-3 py-2 text-sm text-background"
+                    ? "max-w-[85%] whitespace-pre-line rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
                     : "max-w-[85%] whitespace-pre-line rounded-lg bg-muted px-3 py-2 text-sm"
                 }
               >
@@ -175,7 +175,7 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
                       disabled={confirming !== null}
                       onClick={() => confirm(i, m.proposal!)}
                     >
-                      {confirming === i ? "Sending…" : "Confirm & send"}
+                      {confirming === i ? "Sending…" : "Confirm & Send"}
                     </Button>
                   )}
                 </div>
@@ -205,7 +205,7 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
                 <div className="mt-3">
                   {m.sent ? (
                     <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                      Standing offer set ✓
+                      Standing Offer Set ✓
                     </span>
                   ) : (
                     <Button
@@ -214,7 +214,7 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
                       disabled={confirming !== null}
                       onClick={() => confirmStanding(i, m.standingProposal!)}
                     >
-                      {confirming === i ? "Setting…" : "Set up standing offer"}
+                      {confirming === i ? "Setting…" : "Set Up Standing Offer"}
                     </Button>
                   )}
                 </div>
@@ -241,7 +241,7 @@ export function BuyerAgentChat({ configured }: { configured: boolean }) {
                 type="button"
                 onClick={() => send(s)}
                 disabled={pending}
-                className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                className="rounded-sm border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
               >
                 {s}
               </button>

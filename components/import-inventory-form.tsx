@@ -49,7 +49,7 @@ export function ImportInventoryForm() {
             onClick={() => setCsv(SAMPLE)}
             className="text-xs text-muted-foreground underline hover:text-foreground"
           >
-            Load sample
+            Load Sample
           </button>
         </div>
         <textarea
@@ -118,7 +118,7 @@ export function ImportInventoryForm() {
                 — {report.matched} linked to the catalog
                 {report.failed > 0 ? `, ${report.failed} failed` : ""}.{" "}
                 <Link href="/dealer/inventory" className="underline">
-                  View inventory
+                  View Inventory
                 </Link>
               </p>
             ) : (

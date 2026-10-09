@@ -50,9 +50,9 @@ export default async function WantDetailPage({
           Wants
         </Link>
         <span>/</span>
-        <span className="truncate">{w.title || "Untitled want"}</span>
+        <span className="truncate">{w.title || "Untitled Want"}</span>
       </div>
-      <h1 className="mt-1 text-2xl font-semibold">Edit want</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Edit Want</h1>
 
       <form action={updateWant} className="mt-6 space-y-6">
         <input type="hidden" name="id" value={w.id} />
@@ -138,7 +138,7 @@ export default async function WantDetailPage({
       <form action={deleteWant} className="mt-3">
         <input type="hidden" name="id" value={w.id} />
         <button className="text-sm text-muted-foreground underline hover:text-destructive">
-          Delete want
+          Delete Want
         </button>
       </form>
     </div>

@@ -63,8 +63,8 @@ export async function AppHeader({ email }: { email: string | null }) {
               title="Admin only — switch what everyone sees"
             >
               {marketplaceEnabled
-                ? "Switch to Collections launch"
-                : "Switch to full marketplace"}
+                ? "Switch to Collections Launch"
+                : "Switch to Full Marketplace"}
             </button>
           </form>
         )}
@@ -78,7 +78,7 @@ export async function AppHeader({ email }: { email: string | null }) {
                 >
                   Notifications
                   {unread > 0 && (
-                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+                    <span className="rounded-sm bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
                       {unread}
                     </span>
                   )}
@@ -98,7 +98,7 @@ export async function AppHeader({ email }: { email: string | null }) {
             href="/login"
             className="rounded-md border px-3 py-1.5 font-medium hover:bg-muted"
           >
-            Sign in
+            Sign In
           </Link>
         )}
       </div>

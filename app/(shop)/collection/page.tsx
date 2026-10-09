@@ -74,18 +74,18 @@ export default async function CollectionPage({
           </p>
         </div>
         <Link href="/collection/new">
-          <Button>Add coin</Button>
+          <Button>Add Coin</Button>
         </Link>
       </div>
 
       {sets.length === 0 ? (
-        <div className="mt-10 rounded-2xl border border-dashed p-12 text-center">
+        <div className="mt-10 rounded-md border border-dashed p-12 text-center">
           <p className="mx-auto max-w-md text-sm text-muted-foreground">
             No sets yet. A set is a group of coins — like the Carson City
             Morgans — that shows what you own and what you&apos;re still missing.
           </p>
           <Link href="/collection/sets/new" className="mt-5 inline-block">
-            <Button>Build your first set</Button>
+            <Button>Build your First Set</Button>
           </Link>
         </div>
       ) : (
@@ -103,7 +103,7 @@ export default async function CollectionPage({
             ))}
             <Link
               href="/collection/sets/new"
-              className="mb-1.5 ml-auto whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+              className="mb-1.5 ml-auto whitespace-nowrap rounded-sm border px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
             >
               + New Set
             </Link>
@@ -154,14 +154,14 @@ function SetTab({
   );
 }
 
-/** A refined "Manage set" pill, shared by both grids. */
+/** A refined "Manage Set" pill, shared by both grids. */
 function ManageLink({ setId }: { setId: string }) {
   return (
     <Link
       href={`/collection/sets/${setId}`}
-      className="rounded-full border px-4 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
+      className="rounded-sm border px-4 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
     >
-      Manage set
+      Manage Set
     </Link>
   );
 }
@@ -221,10 +221,10 @@ async function CustomSetGrid({
       </div>
 
       {coins.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed p-12 text-center text-sm text-muted-foreground">
+        <div className="mt-6 rounded-md border border-dashed p-12 text-center text-sm text-muted-foreground">
           This set has no coins yet.{" "}
           <Link href={`/collection/sets/${setId}`} className="underline">
-            Add coins from your collection
+            Add Coins from your Collection
           </Link>
           .
         </div>
@@ -369,7 +369,7 @@ async function SetGrid({
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-500"
+              className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -377,10 +377,10 @@ async function SetGrid({
       )}
 
       {total === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed p-12 text-center text-sm text-muted-foreground">
+        <div className="mt-6 rounded-md border border-dashed p-12 text-center text-sm text-muted-foreground">
           This set has no coins yet.{" "}
           <Link href={`/collection/sets/${setId}`} className="underline">
-            Add coins to it
+            Add Coins to it
           </Link>
           .
         </div>

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-// A "Save photos" control for the add-coin form footer: downloads the photos
+// A "Save Photos" control for the add-coin form footer: downloads the photos
 // that would be submitted (the same hidden `photos` inputs the form posts) to
 // the user's computer, as PNG or JPG. Conversion happens in the browser via a
 // canvas — JPG has no transparency, so cut-outs are flattened onto white.
@@ -130,7 +130,7 @@ export function SavePhotosButton() {
             className={
               "px-2.5 py-1.5 font-medium uppercase " +
               (fmt === f
-                ? "bg-foreground text-background"
+                ? "bg-primary text-primary-foreground"
                 : "hover:bg-muted") +
               (f === "jpg" ? " border-l" : "")
             }
@@ -146,7 +146,7 @@ export function SavePhotosButton() {
         disabled={busy}
         className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-60"
       >
-        {busy ? "Saving…" : "Save photos"}
+        {busy ? "Saving…" : "Save Photos"}
       </button>
     </div>
   );

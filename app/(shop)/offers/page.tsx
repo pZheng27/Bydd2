@@ -55,7 +55,7 @@ export default async function OffersPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Your offers</h1>
+      <h1 className="text-2xl font-semibold">Your Offers</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Offers you&apos;ve sent, and counters from sellers to review. Accepting a
         counter completes a <span className="font-medium">simulated</span>{" "}
@@ -75,7 +75,7 @@ export default async function OffersPage({
 
       {received.length > 0 && (
         <div className="mt-6">
-          <h2 className="text-sm font-semibold">Counters to review</h2>
+          <h2 className="text-sm font-semibold">Counters to Review</h2>
           <div className="mt-2 space-y-3">
             {received.map((o) => (
               <div key={o.id} className="rounded-xl border p-3">
@@ -97,7 +97,7 @@ export default async function OffersPage({
                   <form action={acceptCounter}>
                     <input type="hidden" name="offer_id" value={o.id} />
                     <Button type="submit" size="sm">
-                      Accept &amp; buy
+                      Accept &amp; Buy
                     </Button>
                   </form>
                   <form action={declineCounter}>

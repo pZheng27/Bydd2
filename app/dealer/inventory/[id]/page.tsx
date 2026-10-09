@@ -123,29 +123,29 @@ export default async function ItemDetailPage({
           Inventory
         </Link>
         <span>/</span>
-        <span className="truncate">{item.title || "Untitled coin"}</span>
+        <span className="truncate">{item.title || "Untitled Coin"}</span>
       </div>
 
       {justListed && (
         <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
           <div className="text-sm font-medium text-green-800 dark:text-green-300">
-            ✓ Listed on the marketplace
+            ✓ Listed on the Marketplace
           </div>
           <p className="mt-1 text-sm text-green-800/80 dark:text-green-300/80">
             Your coin is now live for buyers.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href={`/dealer/inventory/${item.id}`}>
-              <Button size="sm">View item</Button>
+              <Button size="sm">View Item</Button>
             </Link>
             <Link href="/dealer/inventory">
               <Button size="sm" variant="outline">
-                Return to inventory
+                Return to Inventory
               </Button>
             </Link>
             <Link href="/dealer/inventory/new">
               <Button size="sm" variant="outline">
-                List another
+                List Another
               </Button>
             </Link>
           </div>
@@ -158,11 +158,11 @@ export default async function ItemDetailPage({
         <div>
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-semibold">
-              {item.title || "Untitled coin"}
+              {item.title || "Untitled Coin"}
             </h1>
             <span
               className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                "shrink-0 rounded-sm px-2 py-0.5 text-xs font-medium",
                 STATUS_STYLES[item.status] ?? "bg-muted text-muted-foreground",
               )}
             >
@@ -205,7 +205,7 @@ export default async function ItemDetailPage({
             <form action={deleteItem}>
               <input type="hidden" name="id" value={item.id} />
               <button className="rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted">
-                Delete item
+                Delete Item
               </button>
             </form>
           </div>
@@ -243,19 +243,19 @@ export default async function ItemDetailPage({
                     formAction={setItemPrice}
                     className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
                   >
-                    Save price
+                    Save Price
                   </button>
                 </div>
               </div>
               <Button type="submit" variant={listed ? "outline" : "default"}>
-                {listed ? "Unlist from marketplace" : "List on marketplace"}
+                {listed ? "Unlist from Marketplace" : "List on Marketplace"}
               </Button>
             </div>
           </form>
           {!listed && (
             <p className="mt-2 text-xs text-muted-foreground">
               This coin isn&apos;t live yet — type your price, then click{" "}
-              <span className="font-medium">List on marketplace</span> (it saves
+              <span className="font-medium">List on Marketplace</span> (it saves
               the price automatically).
             </p>
           )}
@@ -265,7 +265,7 @@ export default async function ItemDetailPage({
           <div className="rounded-xl border p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-medium">Automatic reprice</div>
+                <div className="text-sm font-medium">Automatic Reprice</div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Recompute this coin&apos;s price from the spot-linked rule the
                   assistant set, using the current metal price.
@@ -274,7 +274,7 @@ export default async function ItemDetailPage({
               <form action={repriceItem}>
                 <input type="hidden" name="item_id" value={item.id} />
                 <Button type="submit" size="sm" variant="outline">
-                  Reprice now
+                  Reprice Now
                 </Button>
               </form>
             </div>
@@ -287,7 +287,7 @@ export default async function ItemDetailPage({
       <div className="mt-4 rounded-xl border p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium">Auction watch</div>
+            <div className="text-sm font-medium">Auction Watch</div>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Weekly, we scan Numisbids for comparable coins coming to auction and
               alert you.
@@ -305,7 +305,7 @@ export default async function ItemDetailPage({
               size="sm"
               variant={item.watch_auctions ? "outline" : "default"}
             >
-              {item.watch_auctions ? "Watching ✓ — turn off" : "Watch auctions"}
+              {item.watch_auctions ? "Watching ✓ — Turn Off" : "Watch Auctions"}
             </Button>
           </form>
         </div>
@@ -315,7 +315,7 @@ export default async function ItemDetailPage({
               <form action={checkAuctionsNow}>
                 <input type="hidden" name="item_id" value={item.id} />
                 <button className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
-                  Check now
+                  Check Now
                 </button>
               </form>
               <span className="text-xs text-muted-foreground">

@@ -114,9 +114,9 @@ export default async function AddCollectionItemPage() {
           My Collection
         </Link>
         <span>/</span>
-        <span>Add coin</span>
+        <span>Add Coin</span>
       </div>
-      <h1 className="mt-1 text-2xl font-semibold">Add a coin you own</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Add a Coin you Own</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Every coin goes into one of your sets. Choose the set below — adding it to
         a checklist set marks that coin as owned.
@@ -126,7 +126,7 @@ export default async function AddCollectionItemPage() {
         <div className="mt-8 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
           You need a set before you can add coins.{" "}
           <Link href="/collection/sets/new" className="underline">
-            Create a set
+            Create a Set
           </Link>{" "}
           first.
         </div>
@@ -212,7 +212,7 @@ export default async function AddCollectionItemPage() {
           </Link>
           <div className="flex flex-wrap items-center gap-3">
             <SavePhotosButton />
-            <Button type="submit">Add to collection</Button>
+            <Button type="submit">Add to Collection</Button>
           </div>
         </div>
       </form>

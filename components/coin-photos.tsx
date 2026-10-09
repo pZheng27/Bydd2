@@ -6,7 +6,7 @@ import { Lightbox } from "@/components/lightbox";
 
 /**
  * Coin photo viewer. Shows the display photos (auto-enhanced when available)
- * with a small "View original photo" toggle whenever the raw upload was kept
+ * with a small "View Original Photo" toggle whenever the raw upload was kept
  * for that image. Clicking the main image opens a full-size overlay; clicking
  * the backdrop, the ✕, or pressing Escape closes it. Images are never cropped
  * (object-contain), so the whole coin always shows.
@@ -46,9 +46,9 @@ export function CoinPhotos({
             <button
               type="button"
               onClick={() => setShowOriginal((v) => !v)}
-              className="absolute bottom-2 right-2 rounded-full border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:bg-background"
+              className="absolute bottom-2 right-2 rounded-sm border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm hover:bg-background"
             >
-              {showOriginal ? "View enhanced" : "View original photo"}
+              {showOriginal ? "View Enhanced" : "View Original Photo"}
             </button>
           )}
         </div>

@@ -183,12 +183,12 @@ export default async function CollectionsBrowsePage() {
           </p>
         </div>
         <Link href="/collection">
-          <Button>Add your own collection</Button>
+          <Button>Add your own Collection</Button>
         </Link>
       </div>
 
       {cards.length === 0 ? (
-        <div className="mt-10 rounded-2xl border border-dashed p-12 text-center text-sm text-muted-foreground">
+        <div className="mt-10 rounded-md border border-dashed p-12 text-center text-sm text-muted-foreground">
           No public sets to show yet.
         </div>
       ) : (
@@ -197,7 +197,7 @@ export default async function CollectionsBrowsePage() {
             <Link
               key={c.setId}
               href={`/u/${c.profileId}#set-${c.setId}`}
-              className="group flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="group flex flex-col overflow-hidden rounded-md border border-border/60 bg-card transition-colors hover:border-foreground/40"
             >
               <div className="grid grid-cols-4 gap-px bg-border/60">
                 {Array.from({ length: PREVIEW }).map((_, i) =>

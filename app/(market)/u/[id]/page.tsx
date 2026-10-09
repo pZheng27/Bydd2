@@ -142,6 +142,8 @@ export default async function PublicProfilePage({
                 </p>
               )}
               <PublicCoinGrid
+                profileId={profile.id}
+                setId={sec.id}
                 coins={sec.coins.map((c) => ({
                   id: c.id,
                   title: c.title ?? "",

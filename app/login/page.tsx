@@ -71,8 +71,8 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl border bg-card p-8 shadow-sm">
-        <h1 className="text-xl font-semibold">Sign in to Bydd</h1>
+      <div className="w-full max-w-sm rounded-xl border bg-card p-8">
+        <h1 className="text-xl font-semibold">Sign In to Bydd</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Continue with Google, or get a magic link by email.
         </p>
@@ -114,7 +114,7 @@ export default function LoginPage() {
                 className="w-full"
                 disabled={status === "sending"}
               >
-                {status === "sending" ? "Sending…" : "Send magic link"}
+                {status === "sending" ? "Sending…" : "Send Magic Link"}
               </Button>
             </form>
           </div>

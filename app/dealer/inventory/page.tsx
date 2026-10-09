@@ -18,7 +18,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-block rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-block rounded-sm px-2 py-0.5 text-xs font-medium",
         STATUS_STYLES[status] ?? "bg-muted text-muted-foreground",
       )}
     >
@@ -86,7 +86,7 @@ export default async function DealerInventoryPage({
             <Button variant="outline">Import CSV</Button>
           </Link>
           <Link href="/dealer/inventory/new">
-            <Button>Add item</Button>
+            <Button>Add Item</Button>
           </Link>
         </div>
       </div>
@@ -99,7 +99,7 @@ export default async function DealerInventoryPage({
             className={cn(
               "rounded-md px-3 py-1.5 text-sm capitalize",
               status === f
-                ? "bg-foreground text-background"
+                ? "bg-primary text-primary-foreground"
                 : "border text-muted-foreground hover:text-foreground",
             )}
           >
@@ -142,7 +142,7 @@ export default async function DealerInventoryPage({
                         href={`/dealer/inventory/${it.id}`}
                         className="font-medium hover:underline"
                       >
-                        {it.title || "Untitled coin"}
+                        {it.title || "Untitled Coin"}
                       </Link>
                     </div>
                   </td>

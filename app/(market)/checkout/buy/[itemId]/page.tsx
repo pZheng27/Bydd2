@@ -28,7 +28,7 @@ export default async function CheckoutBuyPage({
         href={`/market/${itemId}`}
         className="text-sm text-muted-foreground hover:underline"
       >
-        ← Back to listing
+        ← Back to Listing
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">Checkout</h1>
       <div className="mt-1 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
@@ -47,7 +47,7 @@ export default async function CheckoutBuyPage({
           <div className="h-20 w-20 rounded-md bg-muted" />
         )}
         <div className="flex-1">
-          <div className="font-medium">{item.title || "Untitled coin"}</div>
+          <div className="font-medium">{item.title || "Untitled Coin"}</div>
           <div className="text-sm text-muted-foreground">{gradeLabel(item)}</div>
           <div className="text-sm text-muted-foreground">
             from{" "}
@@ -67,7 +67,7 @@ export default async function CheckoutBuyPage({
       <form action={completePurchase} className="mt-6">
         <input type="hidden" name="item_id" value={item.id} />
         <Button type="submit" className="w-full">
-          Complete purchase
+          Complete Purchase
         </Button>
       </form>
       <p className="mt-2 text-center text-xs text-muted-foreground">

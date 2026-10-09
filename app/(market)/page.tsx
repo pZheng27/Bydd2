@@ -113,7 +113,7 @@ export default async function MarketplaceHome({
             className={cn(
               "rounded-md px-3 py-1.5 text-sm",
               sort === s.key
-                ? "bg-foreground text-background"
+                ? "bg-primary text-primary-foreground"
                 : "border text-muted-foreground hover:text-foreground",
             )}
           >
@@ -128,7 +128,7 @@ export default async function MarketplaceHome({
             <Link
               key={it.id}
               href={`/market/${it.id}`}
-              className="overflow-hidden rounded-xl border transition-shadow hover:shadow-sm"
+              className="overflow-hidden rounded-xl border transition-colors hover:border-foreground/40"
             >
               {it.photos?.[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -142,7 +142,7 @@ export default async function MarketplaceHome({
               )}
               <div className="p-3">
                 <div className="truncate text-sm font-medium">
-                  {it.title || "Untitled coin"}
+                  {it.title || "Untitled Coin"}
                 </div>
                 <div className="mt-0.5 text-sm">{fmtMoney(it.price_cents)}</div>
                 <div className="mt-0.5 truncate text-xs text-muted-foreground">

@@ -20,7 +20,7 @@ export default async function NewSetPage() {
         <span>/</span>
         <span>New set</span>
       </div>
-      <h1 className="mt-1 text-2xl font-semibold">Build a set</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Build a Set</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Two kinds of set: start from a <span className="font-medium">template</span>{" "}
         (like the Carson City Morgans) to track owned vs. missing coins, or leave
@@ -87,7 +87,7 @@ export default async function NewSetPage() {
           >
             Cancel
           </Link>
-          <Button type="submit">Create set</Button>
+          <Button type="submit">Create Set</Button>
         </div>
       </form>
     </div>

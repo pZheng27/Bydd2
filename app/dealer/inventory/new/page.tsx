@@ -102,10 +102,10 @@ export default async function AddInventoryItemPage({
           Inventory
         </Link>
         <span>/</span>
-        <span>{ci ? "List from collection" : "Add item"}</span>
+        <span>{ci ? "List from Collection" : "Add Item"}</span>
       </div>
       <h1 className="mt-1 text-2xl font-semibold">
-        {ci ? "List a coin from your collection" : "Add a coin"}
+        {ci ? "List a Coin from your Collection" : "Add a Coin"}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {ci
@@ -282,7 +282,7 @@ export default async function AddInventoryItemPage({
           >
             Cancel
           </Link>
-          <Button type="submit">Save &amp; list</Button>
+          <Button type="submit">Save &amp; List</Button>
         </div>
       </form>
     </div>

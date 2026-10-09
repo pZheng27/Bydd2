@@ -30,7 +30,7 @@ export default async function DealerProfilePage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Dealer profile</h1>
+      <h1 className="text-2xl font-semibold">Dealer Profile</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Your storefront details and the categories you carry.
       </p>
@@ -104,7 +104,7 @@ export default async function DealerProfilePage({
             {dealer?.response_rate ?? "—"}, median{" "}
             {dealer?.median_response_minutes ?? "—"} min.
           </p>
-          <Button type="submit">Save profile</Button>
+          <Button type="submit">Save Profile</Button>
         </div>
       </form>
     </div>

@@ -104,7 +104,7 @@ export default async function WantsPage() {
           </p>
         </div>
         <Link href="/wants/new">
-          <Button>Add a want</Button>
+          <Button>Add a Want</Button>
         </Link>
       </div>
 
@@ -120,7 +120,7 @@ export default async function WantsPage() {
                 className="min-w-0 flex-1 hover:opacity-80"
               >
                 <div className="truncate text-sm font-medium">
-                  {w.title || "Untitled want"}
+                  {w.title || "Untitled Want"}
                 </div>
                 <div className="mt-0.5 text-xs text-muted-foreground">
                   {gradeText(w.grade_min, w.grade_max)}
@@ -132,7 +132,7 @@ export default async function WantsPage() {
 
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                 <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[w.status] ?? "bg-muted text-muted-foreground"}`}
+                  className={`rounded-sm px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[w.status] ?? "bg-muted text-muted-foreground"}`}
                 >
                   {STATUS_LABELS[w.status] ?? w.status}
                 </span>
@@ -167,14 +167,14 @@ export default async function WantsPage() {
         </ul>
       ) : (
         <div className="mt-6 rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          No wants yet. Click <span className="font-medium">Add a want</span> to
+          No wants yet. Click <span className="font-medium">Add a Want</span> to
           describe a coin you&apos;re looking for.
         </div>
       )}
 
       {standing.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-sm font-semibold">Standing offers</h2>
+          <h2 className="text-sm font-semibold">Standing Offers</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Set up with the buyer agent — these auto-offer when a matching coin
             lists at or below your price.

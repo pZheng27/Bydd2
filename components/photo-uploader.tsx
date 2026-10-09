@@ -24,6 +24,7 @@ import {
   TONE_RANGE,
   type Tone,
 } from "@/lib/photo-tone";
+import { GripVertical, RotateCcw, RotateCw, X } from "lucide-react";
 
 type Slot = {
   id: string;
@@ -117,7 +118,7 @@ function HexColorInput({
 }
 
 /**
- * Photo uploader with per-photo processing. "Remove background" places the coin
+ * Photo uploader with per-photo processing. "Remove Background" places the coin
  * on a white background by default; each photo can then switch to None
  * (transparent) or another solid colour (swatches + one hex input). More than
  * one photo can also be composited (work in progress).
@@ -161,11 +162,11 @@ export function PhotoUploader({
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
-  // Whether the user has started a composite (clicked "Create composite").
+  // Whether the user has started a composite (clicked "Create Composite").
   const [composing, setComposing] = useState(false);
   // Cut-outs made *only* for the composite, keyed by slot id. These never touch
   // the photo slots, so building a composite never changes the obverse/reverse
-  // thumbnails — those only change when the user clicks "Remove background".
+  // thumbnails — those only change when the user clicks "Remove Background".
   const [compositeCutouts, setCompositeCutouts] = useState<
     Record<string, string>
   >({});
@@ -201,7 +202,7 @@ export function PhotoUploader({
 
   // Wake the (sleep-when-idle) formatter as soon as the upload UI opens, so the
   // cold start overlaps with the user choosing and adding photos instead of
-  // landing on their first "Remove background" click. Fire-and-forget.
+  // landing on their first "Remove Background" click. Fire-and-forget.
   useEffect(() => {
     warmFormatter().catch(() => {});
   }, []);
@@ -343,7 +344,7 @@ export function PhotoUploader({
    * Place a (transparent) cut-out on a solid colour in the browser — no server
    * round-trip. Replaces the old /flatten service call: it draws the cut-out on
    * a colour-filled canvas and uploads the small JPEG straight to storage, so
-   * "Remove background" and colour changes don't wait on a second service call.
+   * "Remove Background" and colour changes don't wait on a second service call.
    * The result is opaque (coin on a solid colour), so it's saved as a JPEG —
    * far smaller than the transparent PNG /flatten returned, so the upload is
    * quick. Returns the stored path, or null (invalid colour, or a load / export
@@ -651,7 +652,7 @@ export function PhotoUploader({
   /**
    * Make the transparent cut-outs the composite draws, WITHOUT touching the
    * photo slots — so the obverse/reverse thumbnails are never modified. A coin
-   * the user already cut out (its own "Remove background") is reused as-is. The
+   * the user already cut out (its own "Remove Background") is reused as-is. The
    * composite only ever shows cut-outs, never the original background, so if a
    * coin can't be cut out we surface an error and don't open the composite.
    * Sequential, to be gentle on the single-worker formatter.
@@ -818,7 +819,7 @@ export function PhotoUploader({
   const placeholders = slots.length < 2 ? SLOT_LABELS.slice(slots.length) : [];
 
   // The two coins that go into the composite. Each must have a cut-out — the
-  // user's own, or the composite-only one made on "Create composite" — before
+  // user's own, or the composite-only one made on "Create Composite" — before
   // the composite opens, so the original background is never shown.
   const compositeCoins = compositeSlots();
   const coinCutout = (s: Slot): string | null => s.cutout ?? compositeCutouts[s.id] ?? null;
@@ -1054,12 +1055,12 @@ export function PhotoUploader({
                       dragIndex.current = null;
                     }}
                     title="Drag to reorder"
-                    className="absolute left-1 top-1 cursor-grab select-none rounded bg-background/80 px-1.5 text-sm leading-5 shadow-sm active:cursor-grabbing"
+                    className="absolute left-1 top-1 flex h-6 w-6 cursor-grab select-none items-center justify-center rounded-sm border bg-background/90 active:cursor-grabbing"
                   >
-                    ⠿
+                    <GripVertical className="size-4" aria-hidden />
                   </span>
                   {i === 0 && (!composite || !compositePrimary) && (
-                    <span className="absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background">
+                    <span className="absolute bottom-1 left-1 rounded-sm bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
                       Primary
                     </span>
                   )}
@@ -1067,10 +1068,10 @@ export function PhotoUploader({
                     type="button"
                     onClick={() => removeSlot(s.id)}
                     disabled={disabled}
-                    className="absolute -right-2 -top-2 rounded-full border bg-background px-1.5 text-xs leading-5 hover:bg-muted"
+                    className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-sm border bg-background hover:bg-muted"
                     aria-label="Remove photo"
                   >
-                    ✕
+                    <X className="size-3.5" aria-hidden />
                   </button>
                   {s.cutout && (
                     <span
@@ -1079,9 +1080,9 @@ export function PhotoUploader({
                       onPointerUp={onSpinUp}
                       title="Drag to rotate"
                       aria-label="Drag to rotate"
-                      className="absolute bottom-1 right-1 cursor-grab touch-none select-none rounded-full border bg-background/90 px-1.5 text-sm leading-6 shadow-sm active:cursor-grabbing"
+                      className="absolute bottom-1 right-1 flex h-6 w-6 cursor-grab touch-none select-none items-center justify-center rounded-sm border bg-background/90 active:cursor-grabbing"
                     >
-                      {busy === `rotate:${s.id}` ? "…" : "↻"}
+                      {busy === `rotate:${s.id}` ? "…" : <RotateCw className="inline size-3.5 align-[-2px]" aria-hidden />}
                     </span>
                   )}
                 </div>
@@ -1092,7 +1093,7 @@ export function PhotoUploader({
                     disabled={busy !== null}
                     className="w-[212px] rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-60"
                   >
-                    {busy === `bg:${s.id}` ? "Removing…" : "Remove background"}
+                    {busy === `bg:${s.id}` ? "Removing…" : "Remove Background"}
                   </button>
                 ) : (
                   bgOptions(s)
@@ -1136,7 +1137,7 @@ export function PhotoUploader({
                   +
                 </span>
                 <span className="text-sm font-medium">
-                  {busy === "upload" ? "Uploading…" : "Add photo"}
+                  {busy === "upload" ? "Uploading…" : "Add Photo"}
                 </span>
                 <input
                   type="file"
@@ -1152,11 +1153,11 @@ export function PhotoUploader({
 
           {slots.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Drag a photo (or the <span aria-hidden="true">⠿</span> grip) to
+              Drag a photo (or the <GripVertical className="inline size-3.5 align-[-2px]" aria-hidden /> grip) to
               reorder — the first photo (
               <span className="font-medium">Primary</span>) is your
               listing&apos;s main image. Click a photo to enlarge it. After
-              removing a background, drag <span aria-hidden="true">↻</span> to
+              removing a background, drag <RotateCw className="inline size-3.5 align-[-2px]" aria-hidden /> to
               spin it to any angle.
             </p>
           )}
@@ -1176,7 +1177,7 @@ export function PhotoUploader({
                     className={
                       "px-3 py-1.5 font-medium " +
                       (bg === "plain"
-                        ? "bg-foreground text-background"
+                        ? "bg-primary text-primary-foreground"
                         : "hover:bg-muted")
                     }
                   >
@@ -1189,7 +1190,7 @@ export function PhotoUploader({
                     className={
                       "border-l px-3 py-1.5 font-medium " +
                       (bg === "shadow"
-                        ? "bg-foreground text-background"
+                        ? "bg-primary text-primary-foreground"
                         : "hover:bg-muted")
                     }
                   >
@@ -1206,13 +1207,13 @@ export function PhotoUploader({
                   </div>
                   <div>
                     <div className="mb-1 text-xs font-medium text-muted-foreground">
-                      Front (obverse)
+                      Front (Obverse)
                     </div>
                     {roleRow(obvId, revId, setObvId)}
                   </div>
                   <div>
                     <div className="mb-1 text-xs font-medium text-muted-foreground">
-                      Back (reverse)
+                      Back (Reverse)
                     </div>
                     {roleRow(revId, obvId, setRevId)}
                   </div>
@@ -1225,7 +1226,7 @@ export function PhotoUploader({
                         void makeCompositeCutouts();
                       }}
                       disabled={disabled || !obvId || !revId || obvId === revId}
-                      className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
+                      className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
                     >
                       {busy === "compose" ? "Preparing…" : "Continue"}
                     </button>
@@ -1249,9 +1250,9 @@ export function PhotoUploader({
                   type="button"
                   onClick={onMainCompose}
                   disabled={disabled}
-                  className="rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60"
+                  className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
                 >
-                  Create composite
+                  Create Composite
                 </button>
               ) : null}
             </div>
@@ -1503,7 +1504,7 @@ export function PhotoUploader({
                   {/* Crop or extend the frame edges — nothing is resized */}
                   <div>
                     <div className="text-xs font-medium text-muted-foreground">
-                      Crop or extend the edges
+                      Crop or Extend the Edges
                     </div>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       Nothing is resized — trim (−) or add space (+).
@@ -1583,7 +1584,7 @@ export function PhotoUploader({
                     onClick={resetAdjust}
                     className="mt-1 w-full rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
                   >
-                    ↺ Reset adjustments
+                    <RotateCcw className="inline size-3.5 align-[-2px]" aria-hidden /> Reset Adjustments
                   </button>
                 </div>
               </div>

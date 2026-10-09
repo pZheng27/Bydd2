@@ -90,7 +90,7 @@ export function UserMenu({
               role="menuitem"
               className="block w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted"
             >
-              Sign out
+              Sign Out
             </button>
           </form>
         </div>

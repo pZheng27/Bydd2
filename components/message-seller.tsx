@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { sendMessageInline } from "@/app/(market)/messages/actions";
+import { X } from "lucide-react";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
-/** "Message seller" button that opens a compose overlay and sends in place. */
+/** "Message Seller" button that opens a compose overlay and sends in place. */
 export function MessageSeller({
   recipientId,
   itemId,
@@ -49,7 +50,7 @@ export function MessageSeller({
   return (
     <>
       <Button variant="outline" className="w-full" onClick={openModal}>
-        Message seller
+        Message Seller
       </Button>
 
       {open && (
@@ -63,14 +64,14 @@ export function MessageSeller({
           >
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">
-                Message {sellerName || "the seller"}
+                Message {sellerName || "the Seller"}
               </h2>
               <button
                 onClick={() => setOpen(false)}
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Close"
               >
-                ✕
+                <X className="size-4" aria-hidden />
               </button>
             </div>
 

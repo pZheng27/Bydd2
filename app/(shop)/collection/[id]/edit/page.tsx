@@ -56,11 +56,11 @@ export default async function EditCollectionItemPage({
           My Collection
         </Link>
         <span>/</span>
-        <span className="truncate">{item.title || "Untitled coin"}</span>
+        <span className="truncate">{item.title || "Untitled Coin"}</span>
         <span>/</span>
         <span>Edit</span>
       </div>
-      <h1 className="mt-1 text-2xl font-semibold">Edit coin</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Edit Coin</h1>
 
       <form action={updateCollectionItem} className="mt-6 space-y-6">
         <input type="hidden" name="id" value={item.id} />
@@ -154,7 +154,7 @@ export default async function EditCollectionItemPage({
           >
             Cancel
           </Link>
-          <Button type="submit">Save changes</Button>
+          <Button type="submit">Save Changes</Button>
         </div>
       </form>
     </div>

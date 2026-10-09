@@ -54,7 +54,7 @@ export function SetChecklist({
             <Link
               key={t.id}
               href={t.itemHref}
-              className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="group overflow-hidden rounded-md border border-border/60 bg-card transition-colors hover:border-foreground/40"
             >
               <div className="relative">
                 {t.photoUrl ? (
@@ -64,7 +64,7 @@ export function SetChecklist({
                     No photo
                   </div>
                 )}
-                <span className="absolute left-2.5 top-2.5 z-10 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm backdrop-blur">
+                <span className="absolute left-2.5 top-2.5 z-10 rounded-sm bg-emerald-600/90 px-2 py-0.5 text-[10px] font-medium text-white shadow-sm">
                   ✓ Owned
                 </span>
               </div>
@@ -80,7 +80,7 @@ export function SetChecklist({
           ) : (
             <div
               key={t.id}
-              className="flex flex-col overflow-hidden rounded-2xl border border-dashed border-border/70 bg-muted/15"
+              className="flex flex-col overflow-hidden rounded-md border border-dashed border-border/70 bg-muted/15"
             >
               <div className="flex aspect-square w-full items-center justify-center bg-muted/20 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                 Missing
@@ -95,14 +95,14 @@ export function SetChecklist({
                       href="/wants"
                       className="text-xs font-medium text-muted-foreground underline underline-offset-2"
                     >
-                      On your wants ✓
+                      On your Wants ✓
                     </Link>
                   ) : (
                     <Link
                       href={t.wantHref}
                       className="text-xs font-medium underline underline-offset-2 hover:text-foreground"
                     >
-                      + Add to wants
+                      + Add to Wants
                     </Link>
                   )}
                 </div>

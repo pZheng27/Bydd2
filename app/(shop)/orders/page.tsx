@@ -61,7 +61,7 @@ export default async function OrdersPage({
                   <div className="text-xs text-muted-foreground">
                     {bought ? "Bought" : "Sold"} ·{" "}
                     {new Date(o.created_at).toLocaleDateString()} ·{" "}
-                    {o.kind === "buy_now" ? "Buy now" : "Offer"}
+                    {o.kind === "buy_now" ? "Buy Now" : "Offer"}
                   </div>
                 </div>
                 <div className="font-semibold">{fmtMoney(o.amount_cents)}</div>

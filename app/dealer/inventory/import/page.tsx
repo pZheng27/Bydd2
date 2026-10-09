@@ -11,7 +11,7 @@ export default function ImportInventoryPage() {
         <span>/</span>
         <span>Import CSV</span>
       </div>
-      <h1 className="mt-1 text-2xl font-semibold">Import inventory from CSV</h1>
+      <h1 className="mt-1 text-2xl font-semibold">Import Inventory from CSV</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Bulk-add coins from a spreadsheet. Preview first to see what will link to
         the catalog, then import. Coins you can&apos;t match still import — you
